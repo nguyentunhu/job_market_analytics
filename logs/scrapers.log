@@ -1,0 +1,19 @@
+2026-02-15 17:46:23 - DEBUG - [vieclam24h] Initialized Vieclam24hScraper | timeout=10s, max_results=5, request_delay=2.0s
+2026-02-15 17:46:23 - INFO - [vieclam24h] Start scraping | search_query='Data Analyst' | max_results=5
+2026-02-15 17:46:23 - INFO - [vieclam24h] Scraping page 1 | collected=0
+2026-02-15 17:46:25 - DEBUG - [vieclam24h] Found 5 job links on page
+2026-02-15 17:46:36 - INFO - [vieclam24h] Scraping completed | Pages visited: 1 | Jobs scraped: 5 | Duplicates skipped: 0 | Errors: 0 | Run duration: 12.99s
+2026-02-15 17:46:36 - INFO - [vieclam24h] Results saved to git/job_market_analytics/data\vieclam24h_jobs_20260215_174636.json
+2026-02-15 17:46:49 - DEBUG - [vieclam24h] Initialized Vieclam24hScraper | timeout=10s, max_results=5, request_delay=2.0s
+2026-02-15 17:46:49 - INFO - [vieclam24h] Start scraping | search_query='Data Analyst' | max_results=5
+2026-02-15 17:46:49 - INFO - [vieclam24h] Scraping page 1 | collected=0
+2026-02-15 17:46:52 - DEBUG - [vieclam24h] Found 5 job links on page
+2026-02-15 17:47:03 - INFO - [vieclam24h] Scraping completed | Pages visited: 1 | Jobs scraped: 5 | Duplicates skipped: 0 | Errors: 0 | Run duration: 14.30s
+2026-02-15 17:47:03 - INFO - [vieclam24h] Results saved to git/job_market_analytics/data\vieclam24h_jobs_20260215_174703.json
+2026-02-15 18:28:42 - DEBUG - [topcv] Initialized TopCVScraper | timeout=10s, max_results=5, request_delay=2.0s
+2026-02-15 18:28:54 - DEBUG - [topcv] Initialized TopCVScraper | timeout=10s, max_results=5, request_delay=2.0s
+2026-02-15 18:28:54 - INFO - [topcv] Start scraping | search_query='Data Analyst' | max_results=5
+2026-02-15 18:28:54 - INFO - [topcv] Scraping page 1 | collected=0
+2026-02-15 18:28:55 - DEBUG - [topcv] Found 46 job links on page
+2026-02-15 18:29:07 - INFO - [topcv] Scraping completed | Pages visited: 1 | Jobs scraped: 5 | Duplicates skipped: 0 | Errors: 0 | Run duration: 13.32s
+2026-02-15 18:29:07 - INFO - [topcv] Results saved to git/job_market_analytics/data\topcv_jobs_20260215_182907.json
