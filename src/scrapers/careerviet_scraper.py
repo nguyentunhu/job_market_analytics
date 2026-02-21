@@ -233,16 +233,3 @@ class CareerVietScraper(BaseScraper):
         from datetime import datetime
         return datetime.now().isoformat()
 
-
-# ------------------------------------------------------------------
-# CLI entry point
-# ------------------------------------------------------------------
-if __name__ == "__main__":
-    scraper = CareerVietScraper(max_results=5)
-    results = scraper.scrape(query="Data Analyst")
-    
-    print(f"\nCollected {len(results)} jobs")
-    if results:
-        print("\nSample result:")
-        import json
-        print(json.dumps(results[0], ensure_ascii=False, indent=2))

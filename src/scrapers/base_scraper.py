@@ -64,7 +64,7 @@ class BaseScraper(abc.ABC):
     BASE_LIST_URL: str = None 
     
     # Output configuration
-    OUTPUT_DIR = "git/job_market_analytics/data"
+    OUTPUT_DIR = "git/job_market_analytics/data/raw"
     
     def __init__(
         self,
