@@ -13,7 +13,6 @@ from datetime import datetime
 from src.scrapers.careerviet_scraper import CareerVietScraper
 from src.scrapers.topcv_scraper import TopCVScraper
 from src.scrapers.vieclam24h_scraper import Vieclam24hScraper
-from src.scrapers.vietnamworks_scraper import VietnamWorksScraper 
 
 logger = logging.getLogger('scrapers')
 
@@ -25,7 +24,6 @@ class Orchestrator:
         'careerviet': CareerVietScraper,
         'topcv': TopCVScraper,
         'vieclam24h': Vieclam24hScraper,
-        'vietnamworks': VietnamWorksScraper,
     }
 
     def __init__(self, max_workers: int = 3, max_results_per_platform: int = 200, request_delay: float = 2.0):
