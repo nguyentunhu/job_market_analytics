@@ -66,18 +66,6 @@ pytest tests/
 
 The pipeline follows a clear Extract-Transform-Load (ETL) pattern:
 
-```mermaid
-graph TD;
-    [Start Pipeline: pipeline.py] --> [Scrapers: CareerViet, TopCV, Vieclam24h]
-    [Scrapers: CareerViet, TopCV, Vieclam24h] -->[Raw Job Listings (List[Dict])] 
-    [Orchestrator: orchestrator.py] -->[Aggregated Raw Jobs]
-    [Aggregated Raw Jobs] --> [JobDataTransformer: job_transformer.py]
-    [JobDataTransformer: job_transformer.py] -->[Processed Jobs (List[Dict])] 
-    [JobDataLoader: load_to_db.py]-->[Insert Data] 
-    [SQLite Database: job_market_analytics.db] -->[SQL Queries]
-    [SQL Analysis: 02_analytics_views.sql]-->[Analyzed Data] H[Dashboard (not implemented yet)]
-```
-
 1.  **Extract (Scrapers)**: Individual scraper modules (`careerviet_scraper.py`, `topcv_scraper.py` and `vieclam24h_scraper.py`) extend a `BaseScraper` class, providing platform-specific logic for navigating job listings and extracting raw job details. They handle HTTP requests, retries, and rate-limiting.
 2.  **Orchestrator (`orchestrator.py`)**: Manages the concurrent execution of multiple scrapers using a thread pool. It aggregates all raw job data collected from different platforms into a single, unified list of dictionaries.
 3.  **Transform (`job_transformer.py`)**: Takes the raw job data, cleans it, normalizes fields (job titles, company names, locations), detects seniority levels, extracts salary ranges, and identifies key skills and tools mentioned in job descriptions. It outputs a list of structured, analytics-ready job records.
