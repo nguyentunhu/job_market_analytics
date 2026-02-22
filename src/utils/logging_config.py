@@ -1,131 +1,74 @@
 """
-Centralized logging configuration for job market analytics scrapers.
-
-Provides a LoggerFactory that creates loggers with consistent formatting,
-prefix enforcement, and file-based output for production use.
-
-Design:
-- All scrapers log to the same shared file: git/job_market_analytics/logs/scrapers.log
-- Each logger has a mandatory prefix (e.g., [CareerViet], [Vieclam24h])
-- Enforced via programmatic filters to ensure consistency
-- File-only output (no console) for production environments
-- Idempotent: safe to call multiple times
+Centralized logging configuration for the job market analytics pipeline.
 """
 
 import logging
 import os
-from typing import Optional
+from logging.handlers import TimedRotatingFileHandler
 
+LOGS_DIR = "logs"
 
-class _PrefixLogFilter(logging.Filter):
-    """
-    Adds a prefix to all log messages if not already present.
-    
-    Ensures consistent logging across scrapers by enforcing
-    a mandatory prefix (e.g., [CareerViet], [Vieclam24h]).
-    """
-    
-    def __init__(self, prefix: str):
-        """
-        Args:
-            prefix: The prefix to add (e.g., "CareerViet", "Vieclam24h")
-        """
-        super().__init__()
-        self.prefix = f"[{prefix}]" if prefix and not prefix.startswith("[") else prefix
-    
-    def filter(self, record: logging.LogRecord) -> bool:
-        """Add prefix to message if not already present."""
-        msg = record.getMessage()
-        if not msg.startswith(self.prefix):
-            record.msg = f"{self.prefix} {record.msg}"
-            record.args = ()
-        return True
-
+# Ensure the logs directory exists
+os.makedirs(LOGS_DIR, exist_ok=True)
 
 class LoggerFactory:
     """
-    Factory for creating consistently configured loggers.
-    
-    All loggers share the same file output and are suffixed with
-    platform-specific prefixes.
-    
-    Usage:
-        logger = LoggerFactory.create("CareerViet")
-        logger.info("Starting scrape")
+    Configures and provides loggers for different parts of the application.
     """
     
-    _LOG_DIR = "git/job_market_analytics/logs"
-    _LOG_FILE = "scrapers.log"
-    _SHARED_LOGGERS = {}  # Cache to ensure idempotency
+    LOG_FORMAT = "%(asctime)s - %(levelname)s - [%(name)s] - %(message)s"
     
-    @classmethod
-    def create(cls, platform_name: str, log_level: int = logging.DEBUG) -> logging.Logger:
+    @staticmethod
+    def setup_loggers():
         """
-        Create or retrieve a logger for a specific platform.
-        
-        Args:
-            platform_name: Name of the platform (e.g., "CareerViet", "Vieclam24h")
-            log_level: Logging level (default: DEBUG)
-            
-        Returns:
-            Configured logger instance
-            
-        Raises:
-            ValueError: If platform_name is empty or None
+        Sets up the root logger and specific handlers for different modules.
+        This should be called once at the start of the application.
         """
-        if not platform_name:
-            raise ValueError("platform_name cannot be empty")
-        
-        # Check cache first (return existing logger)
-        if platform_name in cls._SHARED_LOGGERS:
-            return cls._SHARED_LOGGERS[platform_name]
-        
-        # Create directory if needed
-        os.makedirs(cls._LOG_DIR, exist_ok=True)
-        
-        # Get or create logger
-        logger = logging.getLogger(platform_name)
-        
-        # Clear existing handlers/filters to allow reconfiguration
-        for handler in logger.handlers[:]:
-            logger.removeHandler(handler)
-        for filt in logger.filters[:]:
-            logger.removeFilter(filt)
-        
-        logger.setLevel(log_level)
-        logger.propagate = False  # Prevent duplicate logging
-        
-        # File handler (appending mode for shared log file)
-        log_path = os.path.join(cls._LOG_DIR, cls._LOG_FILE)
-        handler = logging.FileHandler(log_path, mode="a", encoding="utf-8")
-        handler.setLevel(log_level)
-        
-        # Formatter with timestamp, level, message
-        formatter = logging.Formatter(
-            "%(asctime)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+        # Basic configuration for the root logger
+        logging.basicConfig(
+            level=logging.INFO,
+            format=LoggerFactory.LOG_FORMAT,
+            handlers=[logging.StreamHandler()] # Default to console output
         )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
         
-        # Attach prefix filter to enforce [PlatformName] on all messages
-        logger.addFilter(_PrefixLogFilter(platform_name))
+        # Create specific handlers for different logs
+        scraper_handler = TimedRotatingFileHandler(
+            os.path.join(LOGS_DIR, 'scrapers.log'), when='D', interval=1, backupCount=7, encoding='utf-8'
+        )
+        scraper_handler.setFormatter(logging.Formatter(LoggerFactory.LOG_FORMAT))
+
+        transformer_handler = TimedRotatingFileHandler(
+            os.path.join(LOGS_DIR, 'transformer.log'), when='D', interval=1, backupCount=7, encoding='utf-8'
+        )
+        transformer_handler.setFormatter(logging.Formatter(LoggerFactory.LOG_FORMAT))
         
-        # Flush handler after configuration
-        handler.flush()
+        load_handler = TimedRotatingFileHandler(
+            os.path.join(LOGS_DIR, 'load.log'), when='D', interval=1, backupCount=7, encoding='utf-8'
+        )
+        load_handler.setFormatter(logging.Formatter(LoggerFactory.LOG_FORMAT))
+
+        # Get and configure loggers
+        logging.getLogger('scrapers').addHandler(scraper_handler)
+        logging.getLogger('scrapers').propagate = False # Prevent double logging to console
         
-        # Cache and return
-        cls._SHARED_LOGGERS[platform_name] = logger
-        return logger
-    
-    @classmethod
-    def get_log_file_path(cls) -> str:
-        """Get the full path to the shared log file."""
-        return os.path.join(cls._LOG_DIR, cls._LOG_FILE)
-    
-    @classmethod
-    def flush_all(cls) -> None:
-        """Flush all handlers for all loggers (useful before process exit)."""
-        for logger in cls._SHARED_LOGGERS.values():
-            for handler in logger.handlers:
-                handler.flush()
+        logging.getLogger('transformer').addHandler(transformer_handler)
+        logging.getLogger('transformer').propagate = False
+        
+        logging.getLogger('load').addHandler(load_handler)
+        logging.getLogger('load').propagate = False
+
+        # General pipeline logger
+        pipeline_handler = TimedRotatingFileHandler(
+            os.path.join(LOGS_DIR, 'pipeline.log'), when='D', interval=1, backupCount=7, encoding='utf-8'
+        )
+        pipeline_handler.setFormatter(logging.Formatter(LoggerFactory.LOG_FORMAT))
+        logging.getLogger('pipeline').addHandler(pipeline_handler)
+        logging.getLogger('pipeline').propagate = False
+
+    @staticmethod
+    def get_logger(name: str) -> logging.Logger:
+        """
+        Returns a logger with the specified name.
+        """
+        return logging.getLogger(name)
+

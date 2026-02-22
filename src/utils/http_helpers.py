@@ -1,153 +1,106 @@
 """
-HTTP session and request helpers for job market analytics scrapers.
-
-Provides utility functions for managing HTTP sessions, headers, and requests
-with built-in error handling and retry logic.
+http helper functions for scrapers.
 """
 
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional
+
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry as UrllibRetry
+from urllib3.util.retry import Retry
+from urllib.parse import urljoin
 
-from .exceptions import FetchException, RateLimitException
+from .exceptions import FetchException
 
+# default user agent to mimic a browser
+DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/96.0.4664.110 Safari/537.36"
+)
 
 def create_session(
     retries: int = 3,
     backoff_factor: float = 0.5,
     timeout: int = 10,
-    user_agent: Optional[str] = None,
+    user_agent: str = DEFAULT_USER_AGENT,
 ) -> requests.Session:
     """
-    Create a requests Session with retry strategy and common headers.
+    create a requests session with retry logic and standard headers.
     
-    Args:
-        retries: Number of retries for failed requests (default: 3)
-        backoff_factor: Backoff factor for retries (default: 0.5)
-        timeout: Default request timeout in seconds (default: 10)
-        user_agent: Custom User-Agent header (default: Chrome-like agent)
+    args:
+        retries: number of retry attempts.
+        backoff_factor: backoff factor for retries.
+        timeout: request timeout in seconds.
+        user_agent: user-agent string for headers.
         
-    Returns:
-        Configured requests.Session instance
+    returns:
+        configured requests session.
     """
     session = requests.Session()
     
-    # Configure retry strategy
-    retry_strategy = UrllibRetry(
+    # define retry strategy
+    retry_strategy = Retry(
         total=retries,
         backoff_factor=backoff_factor,
         status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
+        allowed_methods=["head", "get", "options"]
     )
     
-    # Mount adapters for HTTP and HTTPS
+    # mount http and https adapters
     adapter = HTTPAdapter(max_retries=retry_strategy)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     
-    # Set default headers
-    if user_agent is None:
-        user_agent = (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/144.0.0.0 Safari/537.36 "
-            "Edg/144.0.0.0"
-        )
+    # set default headers
+    session.headers.update({"User-Agent": user_agent})
     
-    session.headers.update({
-        "User-Agent": user_agent,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Connection": "keep-alive",
-    })
-    
-    # Store timeout as session attribute for convenience
-    session.timeout = timeout  # type: ignore
+    # set default timeout
+    session.timeout = timeout
     
     return session
-
 
 def fetch_page(
     session: requests.Session,
     url: str,
-    timeout: Optional[int] = None,
-    logger: Optional[logging.Logger] = None,
+    timeout: int,
+    logger: logging.Logger,
 ) -> Optional[str]:
     """
-    Fetch a page using a session, with error handling.
+    fetch a single page using a requests session.
     
-    Args:
-        session: requests.Session instance
-        url: URL to fetch
-        timeout: Request timeout in seconds (default: session.timeout)
-        logger: Logger instance for logging failures (optional)
+    args:
+        session: requests session to use.
+        url: url to fetch.
+        timeout: request timeout.
+        logger: logger for logging messages.
         
-    Returns:
-        Page content as string, or None if fetch failed
+    returns:
+        page content as text, or none on failure.
         
-    Raises:
-        FetchException: If fetch fails after retries
-        RateLimitException: If rate limited (HTTP 429)
+    raises:
+        fetchexception: if the request fails after all retries.
     """
-    if timeout is None:
-        timeout = getattr(session, "timeout", 10)
-    
     try:
         response = session.get(url, timeout=timeout)
-        
-        # Check for rate limiting
-        if response.status_code == 429:
-            msg = f"Rate limited (HTTP 429): {url}"
-            if logger:
-                logger.warning(msg)
-            raise RateLimitException(msg)
-        
-        # Check for other HTTP errors
-        if response.status_code != 200:
-            msg = f"HTTP {response.status_code}: {url}"
-            if logger:
-                logger.warning(msg)
-            raise FetchException(msg)
-        
+        response.raise_for_status()  # raise httperror for bad responses (4xx or 5xx)
         return response.text
     
-    except requests.exceptions.Timeout as e:
-        msg = f"Timeout fetching {url}: {str(e)}"
-        if logger:
-            logger.error(msg)
-        raise FetchException(msg) from e
-    
     except requests.exceptions.RequestException as e:
-        msg = f"Request failed for {url}: {str(e)}"
-        if logger:
-            logger.error(msg)
-        raise FetchException(msg) from e
-
+        logger.error(f"failed to fetch page {url}: {e}")
+        raise FetchException(f"request failed for url: {url}") from e
 
 def normalize_url(url: str, base_domain: str) -> str:
     """
-    Normalize a URL, converting relative URLs to absolute.
+    normalize a url by joining it with a base domain if it's relative.
     
-    Args:
-        url: The URL to normalize (may be relative)
-        base_domain: Base domain to prepend (e.g., "https://example.com")
+    args:
+        url: url to normalize.
+        base_domain: base domain to use.
         
-    Returns:
-        Absolute URL
-        
-    Example:
-        >>> normalize_url("/job/123", "https://example.com")
-        'https://example.com/job/123'
+    returns:
+        absolute url.
     """
-    if url.startswith("http://") or url.startswith("https://"):
-        return url
-    
-    if base_domain.endswith("/"):
-        base_domain = base_domain.rstrip("/")
-    
-    if not url.startswith("/"):
-        url = "/" + url
-    
-    return base_domain + url
+    if not url:
+        return ""
+    return urljoin(base_domain, url)

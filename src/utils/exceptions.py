@@ -1,41 +1,27 @@
 """
-Custom exception classes for job market analytics scrapers.
-
-Provides a hierarchy of exceptions for different failure modes,
-enabling precise error handling and logging in scrapers.
+custom exception classes for the job market analytics project.
 """
 
-
 class ScraperException(Exception):
-    """Base exception for all scraper-related errors."""
+    """base class for all scraper-related exceptions."""
     pass
-
 
 class FetchException(ScraperException):
-    """Raised when fetching a page fails (network, timeout, HTTP error)."""
+    """raised when an http request fails after all retries."""
     pass
-
 
 class ParseException(ScraperException):
-    """Raised when parsing HTML content fails."""
+    """raised when parsing of html or json content fails."""
     pass
-
 
 class ValidationException(ScraperException):
-    """Raised when scraped job data fails validation."""
+    """raised when scraped data fails validation checks."""
     pass
-
-
-class DuplicateException(ScraperException):
-    """Raised when a duplicate URL is encountered (informational, not an error)."""
-    pass
-
 
 class RateLimitException(ScraperException):
-    """Raised when rate limit is hit (HTTP 429 or similar)."""
+    """raised when a rate limit is exceeded."""
     pass
 
-
-class ConfigException(ScraperException):
-    """Raised when configuration is invalid."""
+class ConfigException(Exception):
+    """raised for errors in configuration files."""
     pass

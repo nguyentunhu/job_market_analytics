@@ -1,53 +1,34 @@
-"""
-TopCV Jobs Scraper (based on query, log messages, saves JSON)
-https://www.topcv.vn/
-
-Extracts:
-- Job title
-- Full job description
-- Posting date: None (no specified) 
-- Job URL
-- Scraped timestamp
-"""
-
 import time
 from typing import List, Dict, Any, Optional
-from bs4 import BeautifulSoup
-import sys 
-from pathlib import Path
 from urllib.parse import quote_plus
+from datetime import datetime
 
-try:
-    from .base_scraper import BaseScraper
-    from ..utils.text_utils import extract_text_by_selector, extract_all_text_from_block
-except ImportError:
-    # When run directly as a script
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from base_scraper import BaseScraper
-    from utils.text_utils import extract_text_by_selector, extract_all_text_from_block
+from bs4 import BeautifulSoup
+
+from src.scrapers.base_scraper import BaseScraper
+from src.utils.text_utils import extract_text_by_selector, extract_all_text_from_block
+
 
 class TopCVScraper(BaseScraper):
-    """
-    TopCV job scraper implementation.
-    """
+    """scraper for topcv job listings."""
 
     PLATFORM = "topcv"
     BASE_LIST_URL = "https://www.topcv.vn/tim-viec-lam"
-    JOB_URL_PREFIX = "https://www.topcv.vn/viec-lam/"
+    JOB_URL_PREFIX = "https://www.topcv.vn/viec-lam/" # this is needed for filtering valid job urls
 
-    def scrape(self, query: str) -> List[Dict[str, Any]]:
+    def scrape(self, query: str, max_pages: int = 5) -> List[Dict[str, Any]]:
         start_time = time.time()
         jobs: List[Dict[str, Any]] = []
 
         self.logger.info(
-            f"Start scraping | search_query='{query}' | max_results={self.max_results}"
+            f"start scraping | search_query='{query}' | max_pages={max_pages}"
         )
 
         page = 1
-        while len(jobs) < self.max_results:
+        while page <= max_pages and len(jobs) < self.max_results:
             try:
                 self.logger.info(
-                    f"Scraping page {page} | collected={len(jobs)}"
+                    f"scraping page {page} | collected={len(jobs)}"
                 )
 
                 url = f"{self.BASE_LIST_URL}-{quote_plus(query)}?page={page}" if page>1 \
@@ -56,13 +37,13 @@ class TopCVScraper(BaseScraper):
 
                 soup = self._fetch_page(url)
                 if not soup:
-                    self.logger.info("Failed to fetch page, stopping")
+                    self.logger.info("failed to fetch page, stopping")
                     break
 
                 job_urls = self._scrape_page(soup)
 
                 if not job_urls:
-                    self.logger.info("No jobs found on page, stopping")
+                    self.logger.info("no jobs found on page, stopping")
                     break
 
                 for job_url in job_urls:
@@ -71,7 +52,7 @@ class TopCVScraper(BaseScraper):
 
                     if self._is_duplicate(job_url):
                         self.stats["duplicates_skipped"] += 1
-                        self.logger.debug(f"Skipping duplicate URL: {job_url}")
+                        self.logger.debug(f"skipping duplicate url: {job_url}")
                         continue
 
                     self._mark_visited(job_url)
@@ -84,7 +65,7 @@ class TopCVScraper(BaseScraper):
                 page += 1
 
             except Exception as e:
-                self.logger.error(f"Error scraping page {page}: {str(e)}")
+                self.logger.error(f"error scraping page {page}: {str(e)}")
                 self.stats["errors"] += 1
                 page += 1
 
@@ -92,7 +73,6 @@ class TopCVScraper(BaseScraper):
         self.stats["jobs_scraped"] = len(jobs)
 
         self._log_run_summary()
-        self._save_results_to_json(jobs)
         self.close()
 
         return jobs
@@ -103,7 +83,7 @@ class TopCVScraper(BaseScraper):
         try:
             job_items = soup.find_all("div", class_="job-item-search-result") 
             if not job_items:
-                self.logger.debug("No job items found on page")
+                self.logger.debug("no job items found on page")
                 return job_urls
 
             for job_item in job_items:
@@ -120,53 +100,55 @@ class TopCVScraper(BaseScraper):
                     if job_url.startswith(self.JOB_URL_PREFIX):
                         job_urls.append(job_url)
                 except Exception as e:
-                    self.logger.warning(f"Error extracting job link: {str(e)}")
+                    self.logger.warning(f"error extracting job link: {str(e)}")
                     self.stats["errors"] += 1
 
-            self.logger.debug(f"Found {len(job_urls)} job links on page")
+            self.logger.debug(f"found {len(job_urls)} job links on page")
             return job_urls
         
         except Exception as e:
-            self.logger.error(f"Error scraping page: {str(e)}")
+            self.logger.error(f"error scraping page: {str(e)}")
             self.stats["errors"] += 1
             return job_urls
 
     def _scrape_job_detail(self, job_url: str) -> Optional[Dict[str, Any]]:
         """
-        Scrape a single TopCV job detail page.
+        scrape a single topcv job detail page.
         
-        Returns job dictionary or None if scraping fails.
+        returns job dictionary or none if scraping fails.
         """
         try:
             soup = self._fetch_page(job_url)
             if not soup:
                 return None
             
-            # Extract fields using platform-specific CSS classes
+            # extract fields using platform-specific css classes
             job_title = extract_text_by_selector(soup, "h1", "job-detail__info--title")
+            
+            # topcv often doesn't show posting date on detail page, or it's hard to parse consistently
+            posting_date = None # set to none, transformation will handle it
+
             job_description = extract_all_text_from_block(
                 soup, "div", "job-detail__information-detail"
             )
             
+            # company and location are often on the listing page, or require more complex parsing from detail page
+            # for simplicity, we'll extract directly if available or leave blank
+            company = extract_text_by_selector(soup, "a", "company-name") # placeholder, might need refinement
+            location = extract_text_by_selector(soup, "span", "address") # placeholder, might need refinement
+            
             return {
                 "job_title": job_title,
+                "company": company,
+                "location": location,
                 "job_description": job_description,
-                "posting_date": None,
                 "job_url": job_url,
-                "platform": self.platform,
-                "scraped_at": self._get_timestamp(),
+                "posting_date": posting_date,
+                "platform": self.PLATFORM,
+                "scraped_at": datetime.now().isoformat(),
             }
         
         except Exception as e:
-            self.logger.error(f"Error scraping job detail: {str(e)}")
+            self.logger.error(f"error scraping job detail {job_url}: {str(e)}")
             self.stats["errors"] += 1
             return None
-    
-    # ------------------------------------------------------------------
-    # Utility methods
-    # ------------------------------------------------------------------
-    @staticmethod
-    def _get_timestamp() -> str:
-        """Get current ISO timestamp."""
-        from datetime import datetime
-        return datetime.now().isoformat()

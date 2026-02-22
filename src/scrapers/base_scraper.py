@@ -7,33 +7,19 @@ and other common operations.
 """
 
 import abc
-import os
-import sys
-import json
 import time
 import logging
-from pathlib import Path
 from typing import List, Dict, Any, Optional, Set
 from datetime import datetime
 
 import requests
 from bs4 import BeautifulSoup
 
-# Handle both package imports and direct script execution
-try:
-    from ..utils.logging_config import LoggerFactory
-    from ..utils.exceptions import FetchException, ParseException, ValidationException
-    from ..utils.http_helpers import create_session, fetch_page, normalize_url
-    from ..utils.text_utils import normalize_text, extract_text_by_selector
-    from ..utils.decorators import rate_limit
-except ImportError:
-    # When run directly as a script
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from utils.logging_config import LoggerFactory
-    from utils.exceptions import FetchException, ParseException, ValidationException
-    from utils.http_helpers import create_session, fetch_page, normalize_url
-    from utils.text_utils import normalize_text, extract_text_by_selector
-    from utils.decorators import rate_limit
+from src.utils.logging_config import LoggerFactory
+from src.utils.exceptions import FetchException
+from src.utils.http_helpers import create_session, fetch_page, normalize_url
+from src.utils.text_utils import normalize_text, extract_text_by_selector
+from src.utils.decorators import rate_limit
 
 
 class BaseScraper(abc.ABC):
@@ -47,7 +33,6 @@ class BaseScraper(abc.ABC):
     - HTTP session management with retry strategy
     - Stats tracking (pages visited, jobs scraped, duplicates, errors)
     - Duplicate URL detection
-    - Results saving to JSON with timestamps
     - Rate limiting between requests
     - Centralized error handling
     
@@ -63,15 +48,11 @@ class BaseScraper(abc.ABC):
     # Platform base URL 
     BASE_LIST_URL: str = None 
     
-    # Output configuration
-    OUTPUT_DIR = "git/job_market_analytics/data/raw"
-    
     def __init__(
         self,
         timeout: int = 10,
         max_results: int = 10000,
         request_delay: float = 2.0,
-        platform: Optional[str] = None,
     ):
         """
         Initialize the scraper with common configuration.
@@ -80,17 +61,15 @@ class BaseScraper(abc.ABC):
             timeout: HTTP request timeout in seconds (default: 10)
             max_results: Maximum results to collect before stopping (default: 10000)
             request_delay: Delay between requests in seconds (default: 2.0)
-            platform: Override PLATFORM class variable (optional)
             
         Raises:
             ValueError: If PLATFORM is not set or is empty
         """
         # Resolve platform name
-        self.platform = platform or self.PLATFORM
+        self.platform = self.PLATFORM
         if not self.platform:
             raise ValueError(
-                f"{self.__class__.__name__} must set PLATFORM class variable "
-                "or pass platform parameter"
+                f"{self.__class__.__name__} must set PLATFORM class variable"
             )
         
         # Request configuration
@@ -102,7 +81,7 @@ class BaseScraper(abc.ABC):
         self.session = create_session(timeout=timeout)
         
         # Logger with platform-specific prefix
-        self.logger = LoggerFactory.create(self.platform)
+        self.logger = logging.getLogger(self.platform)
         
         # Statistics tracking
         self.stats = {
@@ -249,43 +228,9 @@ class BaseScraper(abc.ABC):
         )
         self.logger.info(summary)
     
-    def _get_stats(self) -> Dict[str, Any]:
+    def get_statistics(self) -> Dict[str, Any]:
         """Get current statistics dictionary."""
         return self.stats.copy()
-    
-    # ------------------------------------------------------------------
-    # Output handling
-    # ------------------------------------------------------------------
-    def _save_results_to_json(self, jobs: List[Dict[str, Any]]) -> str:
-        """
-        Save scraping results to timestamped JSON file.
-        
-        Location: git/job_market_analytics/data/{platform}_jobs_<timestamp>.json
-        
-        Args:
-            jobs: List of job dictionaries to save
-            
-        Returns:
-            Path to the saved file
-        """
-        try:
-            os.makedirs(self.OUTPUT_DIR, exist_ok=True)
-            
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_file = os.path.join(
-                self.OUTPUT_DIR,
-                f"{self.platform}_jobs_{timestamp}.json"
-            )
-            
-            with open(output_file, "w", encoding="utf-8") as f:
-                json.dump(jobs, f, ensure_ascii=False, indent=2)
-            
-            self.logger.info(f"Results saved to {output_file}")
-            return output_file
-        
-        except Exception as e:
-            self.logger.error(f"Failed to save results to JSON: {str(e)}")
-            raise
     
     # ------------------------------------------------------------------
     # Cleanup
@@ -293,7 +238,6 @@ class BaseScraper(abc.ABC):
     def close(self) -> None:
         """Close HTTP session and flush loggers."""
         self.session.close()
-        LoggerFactory.flush_all()
     
     def __enter__(self):
         """Context manager entry."""
