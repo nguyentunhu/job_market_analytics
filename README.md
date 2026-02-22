@@ -43,7 +43,7 @@ The pipeline:
 To run the entire ETL pipeline, execute the `pipeline.py` script:
 
 ```bash
-python src/pipeline.py
+python -m src.pipeline     # to run pipeline.py as a script
 ```
 
 This will:
