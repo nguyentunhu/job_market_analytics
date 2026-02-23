@@ -30,13 +30,15 @@ class Vieclam24hScraper(BaseScraper):
         jobs: List[Dict[str, Any]] = []
         
         self.logger.info(
-            f"start scraping | query='{query}' | max_pages={max_pages}"
+            f"[{self.PLATFORM}] start scraping | query='{query}' | max_pages={max_pages}"
         )
         
         page = 1
         while page <= max_pages and len(jobs) < self.max_results: # add max_results check
             try:
-                self.logger.info(f"scraping page {page} | collected={len(jobs)}")
+                self.logger.info(
+                    f"[{self.PLATFORM}] scraping page {page} | collected={len(jobs)}"
+                )
                 
                 # vieclam24h pagination url
                 if page == 1:
@@ -49,14 +51,14 @@ class Vieclam24hScraper(BaseScraper):
                 soup = self._fetch_page(url)
                 
                 if not soup:
-                    self.logger.info("failed to fetch page, stopping")
+                    self.logger.info(f"[{self.PLATFORM}] failed to fetch page, stopping")
                     break
                 
                 # extract job urls from page
                 page_jobs = self._scrape_page(soup)
                 
                 if not page_jobs:
-                    self.logger.info("no jobs found on page, stopping")
+                    self.logger.info(f"[{self.PLATFORM}] no jobs found on page, stopping")
                     break
                 
                 # scrape each job detail
@@ -67,7 +69,7 @@ class Vieclam24hScraper(BaseScraper):
                     # duplicate detection
                     if self._is_duplicate(job_url):
                         self.stats["duplicates_skipped"] += 1
-                        self.logger.debug(f"skipping duplicate url: {job_url}")
+                        self.logger.debug(f"[{self.PLATFORM}] skipping duplicate url: {job_url}")
                         continue
                     
                     # mark as visited
@@ -83,7 +85,7 @@ class Vieclam24hScraper(BaseScraper):
                 page += 1
             
             except Exception as e:
-                self.logger.error(f"error scraping page {page}: {str(e)}")
+                self.logger.error(f"[{self.PLATFORM}] error scraping page {page}: {str(e)}")
                 self.stats["errors"] += 1
                 page += 1
         
@@ -112,10 +114,10 @@ class Vieclam24hScraper(BaseScraper):
             job_elements = soup.find_all("a", target="_blank")
             
             if not job_elements:
-                self.logger.debug("no job items found on page")
+                self.logger.debug(f"[{self.PLATFORM}] no job items found on page")
                 return job_urls
             
-            self.logger.debug(f"found {len(job_elements)} job links on page")
+            self.logger.debug(f"[{self.PLATFORM}] found {len(job_elements)} job links on page")
             
             for job in job_elements:
                 try:
@@ -129,13 +131,13 @@ class Vieclam24hScraper(BaseScraper):
                         job_urls.append(job_url)
                 
                 except Exception as e:
-                    self.logger.warning(f"error extracting job link: {str(e)}")
+                    self.logger.warning(f"[{self.PLATFORM}] error extracting job link: {str(e)}")
                     self.stats["errors"] += 1
             
             return job_urls
         
         except Exception as e:
-            self.logger.error(f"error scraping page: {str(e)}")
+            self.logger.error(f"[{self.PLATFORM}] error scraping page: {str(e)}")
             self.stats["errors"] += 1
             return job_urls
     
@@ -178,6 +180,6 @@ class Vieclam24hScraper(BaseScraper):
             }
         
         except Exception as e:
-            self.logger.error(f"error scraping job detail {job_url}: {str(e)}")
+            self.logger.error(f"[{self.PLATFORM}] error scraping job detail {job_url}: {str(e)}")
             self.stats["errors"] += 1
             return None

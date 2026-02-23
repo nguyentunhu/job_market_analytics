@@ -26,7 +26,7 @@ def run_pipeline():
     # extract
     logger.info("starting extract phase")
     orchestrator = Orchestrator()
-    raw_jobs = orchestrator.scrape(query="Data Analyst")
+    raw_jobs = orchestrator.scrape(query="Data Analyst", max_pages=20)
 
     if not raw_jobs:
         logger.warning("no jobs were scraped. terminating pipeline run.")

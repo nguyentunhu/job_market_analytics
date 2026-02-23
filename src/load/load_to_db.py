@@ -38,8 +38,8 @@ class JobDataLoader:
                 self.stats['jobs_inserted'] += 1
 
                 # 2. insert into 'job_descriptions' table
-                self._insert_job_description(job_id, job_data)
-                self.stats['job_descriptions_inserted'] += 1
+                if self._insert_job_description(job_id, job_data):
+                    self.stats['job_descriptions_inserted'] += 1
 
                 # 3. insert and link skills
                 self._insert_and_link_skills(job_id, job_data.get('extracted_skills', []))
@@ -77,18 +77,25 @@ class JobDataLoader:
             )
             
             # use execute_insert with return_id=true to get the last inserted rowid
+            # if job was ignored, we need to retrieve its existing job_id
             job_id = self.db.execute_insert(query, params, return_id=True)
+            if job_id is None: # job was ignored, retrieve existing id
+                existing_job_query = "select job_id from jobs where job_url = ?"
+                existing_job_result = self.db.execute_query(existing_job_query, (job_data.get('job_url'),), fetch_one=True)
+                if existing_job_result:
+                    job_id = existing_job_result[0]
+
             return job_id
         
         except Exception as e:
             logger.error(f"error inserting job {job_data.get('job_url', 'n/a')}: {e}")
             return None
             
-    def _insert_job_description(self, job_id: int, job_data: Dict[str, Any]) -> None:
-        """insert job description into the 'job_descriptions' table."""
+    def _insert_job_description(self, job_id: int, job_data: Dict[str, Any]) -> bool:
+        """insert job description into the 'job_descriptions' table. returns True if success."""
         try:
             query = """
-                insert or replace into job_descriptions
+                insert or ignore into job_descriptions
                 (job_id, raw_description, clean_description)
                 values (?, ?, ?)
             """
@@ -97,9 +104,10 @@ class JobDataLoader:
                 job_data.get('raw_description'),
                 job_data.get('clean_description')
             )
-            self.db.execute_insert(query, params)
+            return self.db.execute_insert(query, params) is True
         except Exception as e:
             logger.error(f"error inserting job description for job_id {job_id}: {e}")
+            return False
 
     def _insert_and_link_skills(self, job_id: int, skills: List[Dict[str, Any]]) -> None:
         """
@@ -136,8 +144,8 @@ class JobDataLoader:
                         insert or ignore into job_skills (job_id, skill_id)
                         values (?, ?)
                     """
-                    self.db.execute_insert(link_query, (job_id, skill_id))
-                    self.stats['job_skills_linked'] += 1
+                    if self.db.execute_insert(link_query, (job_id, skill_id)):
+                        self.stats['job_skills_linked'] += 1
 
             except Exception as e:
                 logger.error(f"error inserting/linking skill '{skill_name}' for job_id {job_id}: {e}")

@@ -22,7 +22,8 @@ class DatabaseManager:
     def _get_connection(self) -> sqlite3.Connection:
         """establishes and returns a database connection."""
         if self._connection is None:
-            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+            if self.db_path != ":memory:": # skip creating directory for in-memory db
+                os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
             self._connection = sqlite3.connect(self.db_path)
             self._connection.row_factory = sqlite3.Row  # access columns by name
             logger.info(f"connected to database: {self.db_path}")
@@ -53,8 +54,8 @@ class DatabaseManager:
         finally:
             cursor.close()
 
-    def execute_insert(self, query: str, params: Optional[Tuple] = None, return_id: bool = False) -> Optional[int]:
-        """executes an insert, update, or delete query and commits changes."""
+    def execute_insert(self, query: str, params: Optional[Tuple] = None, return_id: bool = False) -> Any:
+        """executes an insert, update, or delete query and commits changes. returns rowid if return_id is True, else True on success, None on error."""
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
@@ -65,7 +66,7 @@ class DatabaseManager:
             conn.commit()
             if return_id:
                 return cursor.lastrowid
-            return None
+            return True # indicate success
         except sqlite3.IntegrityError as e:
             logger.warning(f"database integrity error (likely duplicate): {e} - query: {query}")
             conn.rollback()
@@ -79,6 +80,7 @@ class DatabaseManager:
 
     def setup_database(self) -> None:
         """reads and executes the schema sql file to create tables and indexes."""
+        cursor = None  # initialize cursor to none
         try:
             with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
                 schema_sql = f.read()

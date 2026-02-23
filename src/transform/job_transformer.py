@@ -159,16 +159,17 @@ class JobDataTransformer:
         """
         combined_text = (job_title + ' ' + job_description).lower()
         
-        # prioritize based on the order defined in seniorityconfig.seniority_levels
-        # (e.g., manager/lead before senior, senior before mid, etc.)
-        # we'll reverse iterate through the default order to catch higher seniority first
-        for level_key in reversed(list(SeniorityConfig.SENIORITY_LEVELS.keys())):
+        # define an explicit priority order, from highest to lowest
+        priority_order = ['director_vp', 'manager_lead', 'senior', 'mid_level', 'junior', 'intern']
+        
+        for level_key in priority_order:
             patterns = SeniorityConfig.SENIORITY_LEVELS[level_key]
             for pattern in patterns:
+                # use word boundaries to avoid partial matches (e.g., 'seniori' matching 'senior')
                 if re.search(rf'\b{re.escape(pattern)}\b', combined_text):
                     return SeniorityConfig.map_level(level_key)
         
-        return "not specified"
+        return "not_specified" # changed from "not specified" to "not_specified"
     
     def _extract_salary(self, text: str) -> Optional[Dict[str, Any]]:
         """

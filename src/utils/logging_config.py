@@ -1,5 +1,5 @@
 """
-Centralized logging configuration for the job market analytics pipeline.
+centralized logging configuration for the job market analytics pipeline.
 """
 
 import logging
@@ -8,12 +8,12 @@ from logging.handlers import TimedRotatingFileHandler
 
 LOGS_DIR = "logs"
 
-# Ensure the logs directory exists
+# ensure the logs directory exists
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 class LoggerFactory:
     """
-    Configures and provides loggers for different parts of the application.
+    configures and provides loggers for different parts of the application.
     """
     
     LOG_FORMAT = "%(asctime)s - %(levelname)s - [%(name)s] - %(message)s"
@@ -21,54 +21,84 @@ class LoggerFactory:
     @staticmethod
     def setup_loggers():
         """
-        Sets up the root logger and specific handlers for different modules.
-        This should be called once at the start of the application.
+        sets up the root logger and specific handlers for different modules.
+        this should be called once at the start of the application.
         """
-        # Basic configuration for the root logger
-        logging.basicConfig(
-            level=logging.INFO,
-            format=LoggerFactory.LOG_FORMAT,
-            handlers=[logging.StreamHandler()] # Default to console output
-        )
+        # get the root logger
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.DEBUG) # capture all messages from root
         
-        # Create specific handlers for different logs
-        scraper_handler = TimedRotatingFileHandler(
-            os.path.join(LOGS_DIR, 'scrapers.log'), when='D', interval=1, backupCount=7, encoding='utf-8'
-        )
-        scraper_handler.setFormatter(logging.Formatter(LoggerFactory.LOG_FORMAT))
+        # clear any existing handlers to prevent duplicates on successive calls
+        for handler in root_logger.handlers[:]:
+            root_logger.removeHandler(handler)
 
-        transformer_handler = TimedRotatingFileHandler(
-            os.path.join(LOGS_DIR, 'transformer.log'), when='D', interval=1, backupCount=7, encoding='utf-8'
-        )
-        transformer_handler.setFormatter(logging.Formatter(LoggerFactory.LOG_FORMAT))
-        
-        load_handler = TimedRotatingFileHandler(
-            os.path.join(LOGS_DIR, 'load.log'), when='D', interval=1, backupCount=7, encoding='utf-8'
-        )
-        load_handler.setFormatter(logging.Formatter(LoggerFactory.LOG_FORMAT))
+        # 1. console handler for all messages (or general info)
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(logging.Formatter(LoggerFactory.LOG_FORMAT))
+        root_logger.addHandler(console_handler)
 
-        # Get and configure loggers
-        logging.getLogger('scrapers').addHandler(scraper_handler)
-        logging.getLogger('scrapers').propagate = False # Prevent double logging to console
+        # 2. main log file handler (captures everything from root)
+        main_log_file_handler = TimedRotatingFileHandler(
+            os.path.join(LOGS_DIR, 'main.log'), when='D', interval=1, backupCount=7, encoding='utf-8'
+        )
+        main_log_file_handler.setFormatter(logging.Formatter(LoggerFactory.LOG_FORMAT))
+        root_logger.addHandler(main_log_file_handler)
         
-        logging.getLogger('transformer').addHandler(transformer_handler)
-        logging.getLogger('transformer').propagate = False
+        # 3. specific loggers and their file handlers
         
-        logging.getLogger('load').addHandler(load_handler)
-        logging.getLogger('load').propagate = False
-
-        # General pipeline logger
+        # 'pipeline' logger (for src/pipeline.py)
+        pipeline_logger = logging.getLogger('pipeline')
+        pipeline_logger.setLevel(logging.INFO)
+        pipeline_logger.propagate = False # prevent messages from going to root logger
         pipeline_handler = TimedRotatingFileHandler(
             os.path.join(LOGS_DIR, 'pipeline.log'), when='D', interval=1, backupCount=7, encoding='utf-8'
         )
         pipeline_handler.setFormatter(logging.Formatter(LoggerFactory.LOG_FORMAT))
-        logging.getLogger('pipeline').addHandler(pipeline_handler)
-        logging.getLogger('pipeline').propagate = False
+        pipeline_logger.addHandler(pipeline_handler)
+        pipeline_logger.addHandler(console_handler) # also show pipeline messages on console
+
+        # 'scrapers' logger (this will be the parent for careerviet, topcv, vieclam24h)
+        scrapers_logger_root = logging.getLogger('scrapers')
+        scrapers_logger_root.setLevel(logging.INFO)
+        scrapers_logger_root.propagate = False # prevent messages from going to root logger
+        scrapers_handler = TimedRotatingFileHandler(
+            os.path.join(LOGS_DIR, 'scrapers.log'), when='D', interval=1, backupCount=7, encoding='utf-8'
+        )
+        scrapers_handler.setFormatter(logging.Formatter(LoggerFactory.LOG_FORMAT))
+        scrapers_logger_root.addHandler(scrapers_handler)
+        scrapers_logger_root.addHandler(console_handler)
+        
+        # individual platform loggers will inherit from 'scrapers' and thus use its handlers
+        # no need to explicitly configure them here as long as they are children (e.g., 'scrapers.careerviet')
+            
+        # 'transformer' logger
+        transformer_logger = logging.getLogger('transformer')
+        transformer_logger.setLevel(logging.INFO)
+        transformer_logger.propagate = False
+        transformer_handler = TimedRotatingFileHandler(
+            os.path.join(LOGS_DIR, 'transformer.log'), when='D', interval=1, backupCount=7, encoding='utf-8'
+        )
+        transformer_handler.setFormatter(logging.Formatter(LoggerFactory.LOG_FORMAT))
+        transformer_logger.addHandler(transformer_handler)
+        transformer_logger.addHandler(console_handler)
+
+        # 'load' logger
+        load_logger = logging.getLogger('load')
+        load_logger.setLevel(logging.INFO)
+        load_logger.propagate = False
+        load_handler = TimedRotatingFileHandler(
+            os.path.join(LOGS_DIR, 'load.log'), when='D', interval=1, backupCount=7, encoding='utf-8'
+        )
+        load_handler.setFormatter(logging.Formatter(LoggerFactory.LOG_FORMAT))
+        load_logger.addHandler(load_handler)
+        load_logger.addHandler(console_handler)
+
+
 
     @staticmethod
     def get_logger(name: str) -> logging.Logger:
         """
-        Returns a logger with the specified name.
+        returns a logger with the specified name.
         """
         return logging.getLogger(name)
 

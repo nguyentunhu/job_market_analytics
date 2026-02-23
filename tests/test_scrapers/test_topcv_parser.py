@@ -1,5 +1,6 @@
 import pytest
 from bs4 import BeautifulSoup
+from unittest.mock import patch
 
 from src.scrapers.topcv_scraper import TopCVScraper
 

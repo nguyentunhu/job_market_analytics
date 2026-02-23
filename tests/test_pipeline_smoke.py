@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 from src.pipeline import run_pipeline
 

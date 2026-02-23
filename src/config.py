@@ -1,18 +1,15 @@
 """
-Centralized configuration for the job market analytics pipeline.
-
-This file defines various static data used across the project,
-such as skill keywords, seniority levels, and categories for transformation.
+centralized configuration for the job market analytics pipeline.
 """
 
 from typing import Dict, List, Any
 
 class SkillConfig:
     """
-    Defines skills, tools, and their categorization for extraction.
+    defines skills, tools, and their categorization for extraction.
     """
     
-    # Define primary skill categories and their keywords
+    # define primary skill categories and their keywords
     PROGRAMMING_LANGUAGES = {
         "Python": ["python", "py"],
         "SQL": ["sql", "mysql", "postgresql", "mssql", "sqlite"],
@@ -28,6 +25,7 @@ class SkillConfig:
         "Looker": ["looker"],
         "Qlik Sense": ["qlik sense", "qliksense"],
         "Google Data Studio": ["google data studio", "looker studio"],
+        "Excel": ["excel", "ms excel"],
     }
 
     CLOUD_PLATFORMS = {
@@ -82,8 +80,8 @@ class SkillConfig:
     }
     
     SOFT_SKILLS = {
-        "Communication": ["communication", "communicating"],
-        "Problem Solving": ["problem solving", "problem-solving"],
+        "Communication": ["communication", "communicating", "communicator"],
+        "Problem Solving": ["problem solving", "problem-solving", "problem-solver"],
         "Teamwork": ["teamwork", "team player"],
         "Critical Thinking": ["critical thinking"],
         "Attention to Detail": ["attention to detail"],
@@ -92,7 +90,7 @@ class SkillConfig:
 
     @classmethod
     def get_all_skills(cls) -> Dict[str, Dict[str, List[str]]]:
-        """Aggregates all defined skills and their keywords by category."""
+        """aggregates all defined skills and their keywords by category."""
         return {
             "programming_languages": cls.PROGRAMMING_LANGUAGES,
             "bi_tools": cls.BI_TOOLS,
@@ -108,8 +106,8 @@ class SkillConfig:
     @classmethod
     def build_keyword_set(cls) -> Dict[str, str]:
         """
-        Builds a flattened dictionary of all keywords mapped back to their primary skill name.
-        Used for efficient lookup during skill extraction.
+        builds a flattened dictionary of all keywords mapped back to their primary skill name.
+        used for efficient lookup during skill extraction.
         """
         keyword_to_skill = {}
         for category, skills_dict in cls.get_all_skills().items():
@@ -120,7 +118,7 @@ class SkillConfig:
 
 class SeniorityConfig:
     """
-    Defines seniority levels and associated keywords and salary ranges.
+    defines seniority levels and associated keywords and salary ranges.
     """
     SENIORITY_LEVELS: Dict[str, List[str]] = {
         "intern": ["intern", "thực tập sinh"],
@@ -131,23 +129,18 @@ class SeniorityConfig:
         "director_vp": ["director", "vice president", "phó giám đốc", "giám đốc"],
     }
 
-    # Salary ranges for validation (in VND, example values)
-    # This should be updated with actual market data
+    # salary ranges for validation (in vnd, example values)
+    # this should be updated with actual market data
     SENIORITY_SALARY_RANGES: Dict[str, tuple[int, int]] = {
-        "intern": (1_000_000, 5_000_000),  # 1-5 million VND
-        "junior": (5_000_000, 15_000_000), # 5-15 million VND
-        "mid_level": (12_000_000, 25_000_000), # 12-25 million VND
-        "senior": (20_000_000, 40_000_000), # 20-40 million VND
-        "manager_lead": (30_000_000, 60_000_000), # 30-60 million VND
-        "director_vp": (50_000_000, 100_000_000), # 50-100 million VND
+        "intern": (1_000_000, 5_000_000),  # 1-5 million vnd
+        "junior": (5_000_000, 15_000_000), # 5-15 million vnd
+        "mid_level": (12_000_000, 25_000_000), # 12-25 million vnd
+        "senior": (20_000_000, 40_000_000), # 20-40 million vnd
+        "manager_lead": (30_000_000, 60_000_000), # 30-60 million vnd
+        "director_vp": (50_000_000, 100_000_000), # 50-100 million vnd
     }
 
     @classmethod
-    def map_level(cls, text: str) -> str:
-        """Maps detected text to a standardized seniority level."""
-        text_lower = text.lower()
-        for level, keywords in cls.SENIORITY_LEVELS.items():
-            if any(k in text_lower for k in keywords):
-                return level.replace('_', ' ').title()
-        return "Not Specified"
-
+    def map_level(cls, level_key: str) -> str:
+        """maps the internal level key to its standardized string format."""
+        return level_key

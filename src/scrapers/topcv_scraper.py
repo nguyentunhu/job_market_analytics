@@ -21,14 +21,14 @@ class TopCVScraper(BaseScraper):
         jobs: List[Dict[str, Any]] = []
 
         self.logger.info(
-            f"start scraping | search_query='{query}' | max_pages={max_pages}"
+            f"[{self.PLATFORM}] start scraping | search_query='{query}' | max_pages={max_pages}"
         )
 
         page = 1
         while page <= max_pages and len(jobs) < self.max_results:
             try:
                 self.logger.info(
-                    f"scraping page {page} | collected={len(jobs)}"
+                    f"[{self.PLATFORM}] scraping page {page} | collected={len(jobs)}"
                 )
 
                 url = f"{self.BASE_LIST_URL}-{quote_plus(query)}?page={page}" if page>1 \
@@ -37,13 +37,13 @@ class TopCVScraper(BaseScraper):
 
                 soup = self._fetch_page(url)
                 if not soup:
-                    self.logger.info("failed to fetch page, stopping")
+                    self.logger.info(f"[{self.PLATFORM}] failed to fetch page, stopping")
                     break
 
                 job_urls = self._scrape_page(soup)
 
                 if not job_urls:
-                    self.logger.info("no jobs found on page, stopping")
+                    self.logger.info(f"[{self.PLATFORM}] no jobs found on page, stopping")
                     break
 
                 for job_url in job_urls:
@@ -52,7 +52,7 @@ class TopCVScraper(BaseScraper):
 
                     if self._is_duplicate(job_url):
                         self.stats["duplicates_skipped"] += 1
-                        self.logger.debug(f"skipping duplicate url: {job_url}")
+                        self.logger.debug(f"[{self.PLATFORM}] skipping duplicate url: {job_url}")
                         continue
 
                     self._mark_visited(job_url)
@@ -65,7 +65,7 @@ class TopCVScraper(BaseScraper):
                 page += 1
 
             except Exception as e:
-                self.logger.error(f"error scraping page {page}: {str(e)}")
+                self.logger.error(f"[{self.PLATFORM}] error scraping page {page}: {str(e)}")
                 self.stats["errors"] += 1
                 page += 1
 
@@ -83,7 +83,7 @@ class TopCVScraper(BaseScraper):
         try:
             job_items = soup.find_all("div", class_="job-item-search-result") 
             if not job_items:
-                self.logger.debug("no job items found on page")
+                self.logger.debug(f"[{self.PLATFORM}] no job items found on page")
                 return job_urls
 
             for job_item in job_items:
@@ -100,14 +100,14 @@ class TopCVScraper(BaseScraper):
                     if job_url.startswith(self.JOB_URL_PREFIX):
                         job_urls.append(job_url)
                 except Exception as e:
-                    self.logger.warning(f"error extracting job link: {str(e)}")
+                    self.logger.warning(f"[{self.PLATFORM}] error extracting job link: {str(e)}")
                     self.stats["errors"] += 1
 
-            self.logger.debug(f"found {len(job_urls)} job links on page")
+            self.logger.debug(f"[{self.PLATFORM}] found {len(job_urls)} job links on page")
             return job_urls
         
         except Exception as e:
-            self.logger.error(f"error scraping page: {str(e)}")
+            self.logger.error(f"[{self.PLATFORM}] error scraping page: {str(e)}")
             self.stats["errors"] += 1
             return job_urls
 
@@ -149,6 +149,6 @@ class TopCVScraper(BaseScraper):
             }
         
         except Exception as e:
-            self.logger.error(f"error scraping job detail {job_url}: {str(e)}")
+            self.logger.error(f"[{self.PLATFORM}] error scraping job detail {job_url}: {str(e)}")
             self.stats["errors"] += 1
             return None

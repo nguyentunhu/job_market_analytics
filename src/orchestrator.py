@@ -43,12 +43,13 @@ class Orchestrator:
         self.start_time = None
         self.end_time = None
 
-    def scrape(self, query: str = "Data Analyst", enabled_platforms: Optional[List[str]] = None) -> List[Dict]:
+    def scrape(self, query: str = "Data Analyst", max_pages: int = 5, enabled_platforms: Optional[List[str]] = None) -> List[Dict]:
         """
         scrape all platforms concurrently for a given query.
         
         args:
             query: job title to search for.
+            max_pages: maximum number of pages to scrape per platform.
             enabled_platforms: specific platforms to scrape (none = all platforms).
             
         returns:
@@ -60,7 +61,7 @@ class Orchestrator:
         platforms_to_scrape = enabled_platforms if enabled_platforms else list(self.SCRAPERS.keys())
         
         logger.info(f"scraping {len(platforms_to_scrape)} platforms: {', '.join(platforms_to_scrape)}")
-        logger.info(f"search query: '{query}' | max results per platform: {self.max_results_per_platform}")
+        logger.info(f"search query: '{query}' | max results per platform: {self.max_results_per_platform} | max pages per platform: {max_pages}")
         
         all_raw_jobs = []
         scraper_tasks = {}
@@ -83,6 +84,7 @@ class Orchestrator:
                     self._run_single_scraper,
                     scraper,
                     query,
+                    max_pages,
                 )
             
             # collect results as they complete
@@ -96,7 +98,7 @@ class Orchestrator:
                         'status': 'success'
                     }
                     all_raw_jobs.extend(jobs_from_platform)
-                    logger.info(f"[ok] {platform_name}: {len(jobs_from_platform)} jobs scraped, {stats_from_platform.get('errors', 0)} errors.")
+                    logger.info(f"{platform_name}: {len(jobs_from_platform)} jobs scraped, {stats_from_platform.get('errors', 0)} errors.")
                 
                 except Exception as e:
                     self.platform_stats[platform_name] = {
@@ -112,14 +114,11 @@ class Orchestrator:
         self._log_summary()
         return all_raw_jobs
 
-    def _run_single_scraper(self, scraper, query: str) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    def _run_single_scraper(self, scraper, query: str, max_pages: int) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """runs a single scraper and returns its results and statistics."""
         try:
             # each scraper's scrape method now takes query and max_pages directly
-            # max_pages is not explicitly passed here because basescraper's max_results handles it.
-            # if a scraper needs max_pages directly, it should be passed from here.
-            # for simplicity, assume max_results_per_platform in __init__ is sufficient
-            jobs = scraper.scrape(query=query) 
+            jobs = scraper.scrape(query=query, max_pages=max_pages) 
             stats = scraper.get_statistics()
             scraper.close()
             return jobs, stats
