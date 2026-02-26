@@ -1,8 +1,8 @@
 requests
 beautifulsoup4
 lxml # often a dependency for bs4, good to include explicitly
-python-dotenv # If environment variables are used (e.g., for API keys)
-Flask # If a web interface is planned (e.g. for Streamlit)
+python-dotenv # If environment variables are used 
+Flask # If a web interface is planned (Tableau/ Streamlit)
 pandas # Useful for data manipulation, although not strictly required by core ETL
 numpy # Often a dependency for pandas
 SQLAlchemy # For more advanced ORM features, if needed for future expansion

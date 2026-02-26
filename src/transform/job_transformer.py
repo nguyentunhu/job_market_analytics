@@ -143,12 +143,23 @@ class JobDataTransformer:
         
         # remove extra whitespace
         description = ' '.join(description.split())
+
+        # lower text 
+        description = description.lower()
         
-        # remove very long strings (likely urls or garbage)
-        # this part should be used carefully as it might remove valid long words
-        # for a portfolio project, it's a simple heuristic
+        # remove irrelevant text 
+        description = re.sub(
+            r"(chi tiết tin tuyển dụng gửi tôi việc làm tương tự|"
+            r"gợi ý hồ sơ thiết kế cv ứng tuyển chia sẻ việc làm này: gửi tôi việc làm tương tự báo xấu nộp đơn ứng tuyển các công việc tương tự|"
+            r"chia sẻ báo xấu)",
+            "",
+            description,
+            flags=re.IGNORECASE,
+        )
+        
+        # remove very long string
         words = description.split()
-        words = [w for w in words if len(w) < 100] 
+        words = [w for w in words if len(w) < 100]   
         description = ' '.join(words)
         
         return description

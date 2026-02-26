@@ -74,18 +74,18 @@ class SkillConfig:
         "PyTorch": ["pytorch"],
         "Statsmodels": ["statsmodels"],
         "A/B Testing": ["a/b testing", "ab testing"],
-        "Regression": ["regression"],
-        "Classification": ["classification"],
+        "Regression": ["regression", "hồi quy"],
+        "Classification": ["classification", "phân loại"],
         "Clustering": ["clustering"],
     }
     
     SOFT_SKILLS = {
-        "Communication": ["communication", "communicating", "communicator"],
+        "Communication": ["communication", "communicating", "communicator", "giao tiếp"],
         "Problem Solving": ["problem solving", "problem-solving", "problem-solver"],
         "Teamwork": ["teamwork", "team player"],
         "Critical Thinking": ["critical thinking"],
-        "Attention to Detail": ["attention to detail"],
-        "Adaptability": ["adaptability", "adaptable"],
+        "Attention to Detail": ["attention to detail", "tỉ mỉ"],
+        "Adaptability": ["adaptability", "adaptable", "học hỏi"],
     }
 
     @classmethod
@@ -122,15 +122,14 @@ class SeniorityConfig:
     """
     SENIORITY_LEVELS: Dict[str, List[str]] = {
         "intern": ["intern", "thực tập sinh"],
-        "junior": ["junior", "fresher", "entry-level"],
-        "mid_level": ["mid", "experienced", "chuyên viên"],
-        "senior": ["senior", "lead", "trưởng nhóm"],
+        "junior": ["junior", "fresher", "entry"],
+        "mid_level": ["mid", "experienced", "chuyên viên", "3 năm", "4 năm", "3+"],
+        "senior": ["senior", "lead", "trưởng nhóm", "5+", "5 năm"],
         "manager_lead": ["manager", "lead", "quản lý", "trưởng phòng"],
         "director_vp": ["director", "vice president", "phó giám đốc", "giám đốc"],
     }
 
-    # salary ranges for validation (in vnd, example values)
-    # this should be updated with actual market data
+    # salary ranges for validation (in vnd)
     SENIORITY_SALARY_RANGES: Dict[str, tuple[int, int]] = {
         "intern": (1_000_000, 5_000_000),  # 1-5 million vnd
         "junior": (5_000_000, 15_000_000), # 5-15 million vnd
