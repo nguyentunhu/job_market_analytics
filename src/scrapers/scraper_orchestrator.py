@@ -9,9 +9,7 @@ from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
-from src.scrapers.linkedin_scraper import LinkedInScraper
 from src.scrapers.topcv_scraper import TopCVScraper
-from src.scrapers.vietnamworks_scraper import VietnamWorksScraper
 from src.scrapers.careerviet_scraper import CareerVietScraper
 from src.scrapers.vieclam24h_scraper import Vieclam24hScraper
 
@@ -23,9 +21,7 @@ class ScraperOrchestrator:
     
 
     SCRAPERS = {
-        'linkedin': LinkedInScraper,
         'topcv': TopCVScraper,
-        'vietnamworks': VietnamWorksScraper,
         'careerviet': CareerVietScraper,
         'vieclam24h': Vieclam24hScraper,
     }

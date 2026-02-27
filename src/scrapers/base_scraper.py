@@ -51,7 +51,7 @@ class BaseScraper(abc.ABC):
     def __init__(
         self,
         timeout: int = 10,
-        max_results: int = 10000,
+        max_results: int = 500,
         request_delay: float = 2.0,
     ):
         """
@@ -194,10 +194,6 @@ class BaseScraper(abc.ABC):
     def _normalize_url(self, url: str, base_domain: str) -> str:
         """normalize a url (convert relative to absolute)."""
         return normalize_url(url, base_domain)
-    
-    def _normalize_text(self, text: str) -> str:
-        """normalize text (whitespace, zero-width chars)."""
-        return normalize_text(text)
     
     def _extract_text(
         self,

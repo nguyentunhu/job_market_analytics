@@ -18,7 +18,7 @@ class CareerVietScraper(BaseScraper):
     def scrape(
         self,
         query: str,
-        max_pages: int = 5,
+        max_pages: int = 10,
     ) -> List[Dict[str, Any]]:
         """
         scrape careerviet job listings using a search query.
@@ -100,7 +100,6 @@ class CareerVietScraper(BaseScraper):
         
         # log summary 
         self._log_run_summary()
-        self.close()
         
         return jobs
     

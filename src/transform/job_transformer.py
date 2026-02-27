@@ -1,31 +1,43 @@
 import logging
 import re
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
-from src.config import SkillConfig, SeniorityConfig
+from src.config import SkillConfig, SeniorityConfig, LocationConfig
+from src.utils.nlp_utils import JobRelevanceFilter, NLPExtractor, FilterStatistics
 
 logger = logging.getLogger('transformer')
 
 
 class JobDataTransformer:
-    """transforms raw job data into analytics-ready format."""
+    """transforms raw job data into analytics-ready format with NLP filtering."""
     
-    def __init__(self):
-        self.skill_keywords_map = SkillConfig.build_keyword_set()
-    
-    def transform_job(self, raw_job: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def __init__(self, enable_nlp_filter: bool = True, relevance_threshold: float = 0.3):
         """
-        transform a single raw job record.
+        Initialize transformer with optional NLP-based relevance filtering.
+        
+        Args:
+            enable_nlp_filter: Enable NLP-based job relevance filtering
+            relevance_threshold: Similarity threshold for NLP relevance (0-1)
+        """
+        self.skill_keywords_map = SkillConfig.build_keyword_set()
+        self.enable_nlp_filter = enable_nlp_filter
+        self.relevance_filter = JobRelevanceFilter(threshold=relevance_threshold) if enable_nlp_filter else None
+        self.nlp_extractor = NLPExtractor()
+        self.stats = FilterStatistics()
+    
+    def transform_job(self, raw_job: Dict[str, Any], query: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        transform a single raw job record with optional NLP-based relevance filtering.
         
         args:
             raw_job: raw job data from scraper
+            query: search query for NLP-based relevance filtering
             
         returns:
-            processed job with extracted insights or none if essential data is missing.
+            processed job with extracted insights or none if essential data is missing or job is not relevant.
         """
         try:
-            # essential fields for transformation
             job_title_raw = raw_job.get('job_title', '')
             job_description_raw = raw_job.get('job_description', '')
             platform = raw_job.get('platform')
@@ -33,18 +45,39 @@ class JobDataTransformer:
 
             if not job_title_raw or not job_description_raw or not platform or not job_url:
                 logger.warning(f"skipping transformation for job due to missing essential fields: {job_url}")
+                self.stats.record_job(relevant=False, errors=True)
                 return None
             
-            job_description_clean = self._clean_description(job_description_raw)
+            if self.enable_nlp_filter and query and self.relevance_filter:
+                is_relevant = self.relevance_filter.is_relevant(job_title_raw, job_description_raw, query)
+                if not is_relevant:
+                    self.stats.record_job(relevant=False)
+                    return None
             
+            self.stats.record_job(relevant=True)
+            
+            job_description_clean = self._clean_description(job_description_raw)
+
+            company_extracted = self._extract_company(job_description_clean, raw_job)
+            if not company_extracted:
+                self.stats.record_missing_field('company')
+            
+            location_extracted = self._extract_location(job_description_clean, raw_job)
+            if not location_extracted:
+                self.stats.record_missing_field('location')
+            
+            posted_date = self._extract_posted_date(job_description_clean) or self._normalize_date(raw_job.get('posting_date'))
+            if not posted_date:
+                self.stats.record_missing_field('posted_date')
+
             processed_job = {
                 'platform_job_id': self._generate_platform_job_id(raw_job), # new unique id for the platform
                 'platform': platform,
                 'job_url': job_url,
                 'job_title': job_title_raw,
-                'company_name': raw_job.get('company', ''),
-                'location': raw_job.get('location', ''),
-                'posted_date': self._normalize_date(raw_job.get('posting_date')),
+                'company_name': company_extracted,
+                'location': location_extracted,
+                'posted_date': posted_date,
                 'scraped_at': raw_job.get('scraped_at', datetime.now().isoformat()),
                 'seniority_level': self._detect_seniority(job_title_raw, job_description_raw),
                 'salary_min': None,
@@ -69,6 +102,7 @@ class JobDataTransformer:
         
         except Exception as e:
             logger.error(f"error transforming job from {raw_job.get('job_url', 'n/a')}: {e}")
+            self.stats.record_job(relevant=False, errors=True)
             return None
     
     def _generate_platform_job_id(self, raw_job: Dict[str, Any]) -> str:
@@ -133,38 +167,20 @@ class JobDataTransformer:
                         break # found one keyword for this skill, move to next skill
         return skills_found
     
-    def _clean_description(self, description: str) -> str:
-        """clean and normalize job description."""
+    def _clean_description(self, description: str) -> Optional[str]:
+        """Clean and normalize job description to lowercase."""
         if not description:
-            return ''
+            return None
         
-        # remove html tags if any
-        description = re.sub(r'<[^>]+>', '', description)
-        
-        # remove extra whitespace
-        description = ' '.join(description.split())
-
-        # lower text 
         description = description.lower()
-        
-        # remove irrelevant text 
-        description = re.sub(
-            r"(chi tiết tin tuyển dụng gửi tôi việc làm tương tự|"
-            r"gợi ý hồ sơ thiết kế cv ứng tuyển chia sẻ việc làm này: gửi tôi việc làm tương tự báo xấu nộp đơn ứng tuyển các công việc tương tự|"
-            r"chia sẻ báo xấu)",
-            "",
-            description,
-            flags=re.IGNORECASE,
-        )
-        
-        # remove very long string
-        words = description.split()
-        words = [w for w in words if len(w) < 100]   
+        description = re.sub(r'<[^>]+>', '', description)
+        description = ' '.join(description.split())
+        description = re.sub(r'(chi tiết|gợi ý|báo xấu|nộp đơn|chia sẻ)', '', description, flags=re.IGNORECASE)
+        words = [w for w in description.split() if len(w) < 100]
         description = ' '.join(words)
-        
-        return description
+        return description if description.strip() else None
     
-    def _detect_seniority(self, job_title: str, job_description: str) -> str:
+    def _detect_seniority(self, job_title: str, job_description: str) -> Optional[str]:
         """
         detect seniority level from job title and description using seniorityconfig.
         """
@@ -180,7 +196,7 @@ class JobDataTransformer:
                 if re.search(rf'\b{re.escape(pattern)}\b', combined_text):
                     return SeniorityConfig.map_level(level_key)
         
-        return "not_specified" # changed from "not specified" to "not_specified"
+        return None
     
     def _extract_salary(self, text: str) -> Optional[Dict[str, Any]]:
         """
@@ -247,8 +263,48 @@ class JobDataTransformer:
 
         return None
     
+    def _extract_posted_date(self, clean_description: str) -> Optional[str]:
+        """
+        Extract posted date from clean_description after 'ngày cập nhật:' label.
+        Return as 'YYYY-MM-DD' format or None if not found.
+        """
+        if not clean_description:
+            return None
+        
+        m = re.search(r'ngày cập nhật\s*:\s*([^\n]+?)(?=\b(?:công ty|địa điểm|yêu cầu|quyền lợi|$))', clean_description, flags=re.IGNORECASE)
+        if m:
+            date_raw = m.group(1).strip()
+            date_match = re.search(r'(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4}|\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})', date_raw)
+            if date_match:
+                date_str = date_match.group(1)
+                return self._parse_vietnamese_date(date_str)
+        return None
+    
+    def _parse_vietnamese_date(self, date_str: str) -> Optional[str]:
+        """
+        Parse Vietnamese date formats: dd/mm/yyyy or yyyy-mm-dd.
+        Return as 'yyyy-mm-dd' or None.
+        """
+        try:
+            date_str = date_str.replace('-', '/').replace('.', '/')
+            parts = date_str.split('/')
+            if len(parts) != 3:
+                return None
+            
+            if int(parts[0]) > 31:
+                year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+            else:
+                day, month, year = int(parts[0]), int(parts[1]), int(parts[2])
+            
+            if year < 100:
+                year += 2000
+            
+            return f"{year:04d}-{month:02d}-{day:02d}"
+        except (IndexError, ValueError):
+            return None
+
     def _map_category_to_skill_type(self, category: str) -> str:
-        """map skill category to a more general skill type for the database."""
+        """Map skill category to general skill type for database."""
         mapping = {
             'programming_languages': 'Language',
             'bi_tools': 'Tool',
@@ -262,20 +318,64 @@ class JobDataTransformer:
         }
         return mapping.get(category, 'Other')
     
-    def transform_batch(self, raw_jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _extract_company(self, clean_description: str, raw_job: Dict[str, Any]) -> Optional[str]:
         """
-        transform a batch of raw job records.
+        Extract company from clean_description after 'công ty:' label until next section.
+        Fallback to raw_job['company'] if not found in description.
+        """
+        if not clean_description:
+            return raw_job.get('company') or None
+        
+        m = re.search(r'công ty\s*:\s*([^\n]+?)(?=\b(?:địa điểm|ngày cập nhật|yêu cầu|quyền lợi|thông tin|$))', clean_description, flags=re.IGNORECASE | re.DOTALL)
+        if m:
+            company_raw = m.group(1).strip()
+            company_clean = re.split(r'\|\n\r', company_raw)[0].strip()
+            if company_clean:
+                return company_clean
+        
+        return raw_job.get('company') or None
+
+    def _extract_location(self, clean_description: str, raw_job: Dict[str, Any]) -> Optional[str]:
+        """
+        Extract location from clean_description after 'địa điểm:' label.
+        Map result to canonical location using LocationConfig.
+        Fallback to raw_job['location'] if not found.
+        """
+        if not clean_description:
+            return raw_job.get('location') or None
+        
+        m = re.search(r'địa điểm\s*:\s*([^\n]+?)(?=\b(?:công ty|ngày cập nhật|yêu cầu|quyền lợi|thông tin|$))', clean_description, flags=re.IGNORECASE | re.DOTALL)
+        if m:
+            loc_raw = m.group(1).strip()
+            loc_clean = re.split(r'\|\n\r', loc_raw)[0].strip()
+            if loc_clean:
+                canonical = LocationConfig.get_canonical_location(loc_clean)
+                if canonical:
+                    return canonical
+        
+        return raw_job.get('location') or None
+    
+    def transform_batch(self, raw_jobs: List[Dict[str, Any]], query: Optional[str] = None) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """
+        transform a batch of raw job records with optional NLP filtering.
         
         args:
             raw_jobs: a list of raw job dictionaries.
+            query: search query for NLP-based relevance filtering.
             
         returns:
-            a list of successfully transformed job dictionaries.
+            tuple of (processed jobs list, filtering statistics dict)
         """
         processed_jobs = []
         for raw_job in raw_jobs:
-            processed = self.transform_job(raw_job)
+            processed = self.transform_job(raw_job, query=query)
             if processed:
                 processed_jobs.append(processed)
+        
+        stats_summary = self.stats.get_summary()
         logger.info(f"successfully transformed {len(processed_jobs)} out of {len(raw_jobs)} raw jobs.")
-        return processed_jobs
+        if self.enable_nlp_filter and query:
+            logger.info(f"job relevance filter ratio: {stats_summary.get('filter_ratio', 'N/A')}")
+        
+        self.stats.print_summary()
+        return processed_jobs, stats_summary

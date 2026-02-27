@@ -15,7 +15,7 @@ class Vieclam24hScraper(BaseScraper):
     PLATFORM = "vieclam24h"
     BASE_LIST_URL = "https://vieclam24h.vn/tim-kiem-viec-lam-nhanh?"
     
-    def scrape(self, query: str = "Data Analyst", max_pages: int = 5) -> List[Dict[str, Any]]:
+    def scrape(self, query: str = "Data Analyst", max_pages: int = 10) -> List[Dict[str, Any]]:
         """
         scrape vieclam24h job listings using pagination.
         
@@ -95,7 +95,6 @@ class Vieclam24hScraper(BaseScraper):
         
         # log summary 
         self._log_run_summary()
-        self.close()
         
         return jobs
     

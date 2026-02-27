@@ -4,7 +4,9 @@ Useful for portfolio demonstrations without relying on actual web scraping.
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from bs4 import BeautifulSoup
+
 from src.scrapers.base_scraper import BaseScraper
 
 logger = logging.getLogger(__name__)
@@ -13,9 +15,8 @@ logger = logging.getLogger(__name__)
 class MockScraper(BaseScraper):
     """Demo scraper that returns sample job data for testing."""
     
-    def __init__(self):
-        super().__init__('mock')
-        self.platform_name = 'mock'
+    PLATFORM = "mock"
+    BASE_LIST_URL = "https://example.com/jobs"
     
     SAMPLE_JOBS = [
         {
@@ -108,19 +109,32 @@ class MockScraper(BaseScraper):
         },
     ]
     
-    def scrape(self, search_query: str = 'Data', max_pages: int = 1) -> List[Dict[str, Any]]:
+    def scrape(self, query: str = 'Data', max_pages: int = 1) -> List[Dict[str, Any]]:
         """
         Return mock job data for testing.
         
         Args:
-            search_query: Ignored (for testing)
+            query: Ignored (for testing)
             max_pages: Ignored (all sample data returned)
             
         Returns:
             List of sample job records
         """
-        logger.info(f"[Mock] Mock scraper started (demo mode, returns sample data)")
-        logger.info(f"[Mock] Returning {len(self.SAMPLE_JOBS)} sample jobs for testing")
+        import time
+        start_time = time.time()
         
-        self.jobs_scraped = len(self.SAMPLE_JOBS)
+        self.logger.info(f"[{self.PLATFORM}] Mock scraper started (demo mode, returns sample data)")
+        self.logger.info(f"[{self.PLATFORM}] Returning {len(self.SAMPLE_JOBS)} sample jobs for testing")
+        
+        self.stats["jobs_scraped"] = len(self.SAMPLE_JOBS)
+        self.stats["run_duration_seconds"] = time.time() - start_time
+        
         return self.SAMPLE_JOBS
+    
+    def _scrape_page(self, page_content: BeautifulSoup) -> List[str]:
+        """Not used in mock scraper."""
+        return []
+    
+    def _scrape_job_detail(self, job_url: str) -> Optional[Dict[str, Any]]:
+        """Not used in mock scraper."""
+        return None

@@ -16,7 +16,7 @@ class TopCVScraper(BaseScraper):
     BASE_LIST_URL = "https://www.topcv.vn/tim-viec-lam"
     JOB_URL_PREFIX = "https://www.topcv.vn/viec-lam/" # this is needed for filtering valid job urls
 
-    def scrape(self, query: str, max_pages: int = 5) -> List[Dict[str, Any]]:
+    def scrape(self, query: str, max_pages: int = 10) -> List[Dict[str, Any]]:
         start_time = time.time()
         jobs: List[Dict[str, Any]] = []
 
@@ -73,7 +73,6 @@ class TopCVScraper(BaseScraper):
         self.stats["jobs_scraped"] = len(jobs)
 
         self._log_run_summary()
-        self.close()
 
         return jobs
 

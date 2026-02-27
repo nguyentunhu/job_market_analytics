@@ -1,9 +1,10 @@
-requests
-beautifulsoup4
-lxml # often a dependency for bs4, good to include explicitly
-python-dotenv # If environment variables are used 
-Flask # If a web interface is planned (Tableau/ Streamlit)
-pandas # Useful for data manipulation, although not strictly required by core ETL
-numpy # Often a dependency for pandas
-SQLAlchemy # For more advanced ORM features, if needed for future expansion
-apache-airflow # Not used in this version but a common dependency if Airflow was considered
+requests>=2.28.0
+beautifulsoup4>=4.11.0
+lxml>=4.9.0
+python-dotenv>=0.20.0
+pandas>=1.5.0
+SQLAlchemy>=2.0.0
+pytest>=7.2.0
+sentence-transformers>=2.2.0
+torch>=1.13.0
+

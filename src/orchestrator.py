@@ -26,7 +26,7 @@ class Orchestrator:
         'vieclam24h': Vieclam24hScraper,
     }
 
-    def __init__(self, max_workers: int = 3, max_results_per_platform: int = 200, request_delay: float = 2.0):
+    def __init__(self, max_workers: int = 3, max_results_per_platform: int = 500, request_delay: float = 2.0):
         """
         initialize scraper orchestrator.
         
@@ -43,7 +43,7 @@ class Orchestrator:
         self.start_time = None
         self.end_time = None
 
-    def scrape(self, query: str = "Data Analyst", max_pages: int = 5, enabled_platforms: Optional[List[str]] = None) -> List[Dict]:
+    def scrape(self, query: str = "Data Analyst", max_pages: int = 10, enabled_platforms: Optional[List[str]] = None) -> List[Dict]:
         """
         scrape all platforms concurrently for a given query.
         
@@ -66,8 +66,12 @@ class Orchestrator:
         all_raw_jobs = []
         scraper_tasks = {}
         
+        # timeout per scraper (5 minutes)
+        scraper_timeout_seconds = 300
+        
         # submit all scraping tasks to thread pool
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+        executor = ThreadPoolExecutor(max_workers=self.max_workers)
+        try:
             for platform_name in platforms_to_scrape:
                 if platform_name not in self.SCRAPERS:
                     logger.warning(f"platform '{platform_name}' not found. available: {list(self.SCRAPERS.keys())}")
@@ -90,7 +94,7 @@ class Orchestrator:
             # collect results as they complete
             for platform_name, future in scraper_tasks.items():
                 try:
-                    jobs_from_platform, stats_from_platform = future.result()
+                    jobs_from_platform, stats_from_platform = future.result(timeout=scraper_timeout_seconds)
                     self.platform_stats[platform_name] = {
                         'jobs_scraped': len(jobs_from_platform),
                         'errors': stats_from_platform.get('errors', 0),
@@ -100,6 +104,16 @@ class Orchestrator:
                     all_raw_jobs.extend(jobs_from_platform)
                     logger.info(f"{platform_name}: {len(jobs_from_platform)} jobs scraped, {stats_from_platform.get('errors', 0)} errors.")
                 
+                except TimeoutError:
+                    scraper = scraper_tasks.get(platform_name)
+                    self.platform_stats[platform_name] = {
+                        'jobs_scraped': 0,
+                        'errors': 1,
+                        'duration': 0,
+                        'status': 'failed',
+                        'error_message': f'Scraper timeout after {scraper_timeout_seconds} seconds'
+                    }
+                    logger.error(f"[error] {platform_name}: Scraper timeout after {scraper_timeout_seconds} seconds")
                 except Exception as e:
                     self.platform_stats[platform_name] = {
                         'jobs_scraped': 0,
@@ -109,6 +123,9 @@ class Orchestrator:
                         'error_message': str(e)
                     }
                     logger.error(f"[error] {platform_name}: {str(e)}")
+        
+        finally:
+            executor.shutdown(wait=True)
         
         self.end_time = datetime.now()
         self._log_summary()

@@ -143,3 +143,74 @@ class SeniorityConfig:
     def map_level(cls, level_key: str) -> str:
         """maps the internal level key to its standardized string format."""
         return level_key
+
+class LocationConfig:
+    """
+    Centralized location mappings for Vietnamese cities and provinces.
+    Maps various name formats to a canonical location name.
+    """
+    LOCATION_ALIASES = {
+        'hà nội': ['hà nội', 'ha noi', 'hanoi', 'hn'],
+        'hồ chí minh': ['hồ chí minh', 'ho chi minh', 'hcm', 'hochiminh', 'tp hồ chí minh', 'tp hcm', 'tphcm', 'saigon'],
+        'đà nẵng': ['đà nẵng', 'da nang', 'danang', 'dn'],
+        'hải phòng': ['hải phòng', 'hai phong', 'hp'],
+        'cần thơ': ['cần thơ', 'can tho', 'ct'],
+        'quảng ninh': ['quảng ninh', 'quang ninh', 'qn'],
+        'bình dương': ['bình dương', 'binh duong', 'bd'],
+        'bình phước': ['bình phước', 'binh phuoc'],
+        'đồng nai': ['đồng nai', 'dong nai'],
+        'long an': ['long an', 'la'],
+        'tiền giang': ['tiền giang', 'tien giang'],
+        'hậu giang': ['hậu giang', 'hau giang'],
+        'vĩnh long': ['vĩnh long', 'vinh long'],
+        'an giang': ['an giang', 'ag'],
+        'kiên giang': ['kiên giang', 'kien giang'],
+        'cà mau': ['cà mau', 'ca mau', 'cm'],
+        'sóc trăng': ['sóc trăng', 'soc trang'],
+        'bạc liêu': ['bạc liêu', 'bac lieu'],
+        'thừa thiên huế': ['thừa thiên huế', 'thua thien hue', 'tth'],
+        'quảng trị': ['quảng trị', 'quang tri'],
+        'quảng bình': ['quảng bình', 'quang binh'],
+        'hà tĩnh': ['hà tĩnh', 'ha tinh'],
+        'nghệ an': ['nghệ an', 'nghe an'],
+        'thanh hóa': ['thanh hóa', 'thanh hoa'],
+        'hòa bình': ['hòa bình', 'hoa binh'],
+        'sơn la': ['sơn la', 'son la'],
+        'yên bái': ['yên bái', 'yen bai'],
+        'lạng sơn': ['lạng sơn', 'lang son'],
+        'cao bằng': ['cao bằng', 'cao bang'],
+        'bắc kạn': ['bắc kạn', 'bac kan'],
+        'tuyên quang': ['tuyên quang', 'tuyen quang'],
+        'phú thọ': ['phú thọ', 'phu tho'],
+        'vĩnh phúc': ['vĩnh phúc', 'vinh phuc'],
+        'hưng yên': ['hưng yên', 'hung yen'],
+        'hải dương': ['hải dương', 'hai duong'],
+        'nam định': ['nam định', 'nam dinh'],
+        'ninh bình': ['ninh bình', 'ninh binh'],
+        'ninh thuận': ['ninh thuận', 'ninh thuan'],
+        'khánh hòa': ['khánh hòa', 'khanh hoa'],
+        'phú yên': ['phú yên', 'phu yen'],
+        'gia lai': ['gia lai', 'gl'],
+        'đắk lắk': ['đắk lắk', 'dak lak'],
+        'đắk nông': ['đắk nông', 'dak nong'],
+        'lâm đồng': ['lâm đồng', 'lam dong'],
+    }
+
+    @classmethod
+    def get_canonical_location(cls, location_name: str) -> str:
+        """
+        Normalize a location name to canonical form by checking aliases.
+        If not found, return original normalized name.
+        """
+        if not location_name:
+            return ''
+        normalized = location_name.lower().strip()
+        for canonical, aliases in cls.LOCATION_ALIASES.items():
+            if normalized in aliases:
+                return canonical
+        return normalized
+
+    @classmethod
+    def get_all_canonical_locations(cls) -> List[str]:
+        """Return list of all canonical location names."""
+        return list(cls.LOCATION_ALIASES.keys())
