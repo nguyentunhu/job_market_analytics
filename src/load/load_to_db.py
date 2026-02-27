@@ -56,9 +56,9 @@ class JobDataLoader:
         try:
             query = """
                 insert or ignore into jobs 
-                (platform_job_id, platform, job_url, job_title, company_name, location, 
-                 posted_date, scraped_at, seniority_level, salary_min, salary_max, salary_currency)
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (platform_job_id, platform, job_url, job_title, 
+                 scraped_at, seniority_level, salary_min, salary_max, salary_currency)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             
             params = (
@@ -66,9 +66,6 @@ class JobDataLoader:
                 job_data.get('platform'),
                 job_data.get('job_url'),
                 job_data.get('job_title'),
-                job_data.get('company_name'),
-                job_data.get('location'),
-                job_data.get('posted_date'),
                 job_data.get('scraped_at'),
                 job_data.get('seniority_level'),
                 job_data.get('salary_min'),

@@ -37,16 +37,14 @@ def run_pipeline():
 
     # transform
     logger.info("starting transform phase")
-    transformer = JobDataTransformer(enable_nlp_filter=True)
-    processed_jobs, transform_stats = transformer.transform_batch(raw_jobs, query="Data Analyst")
+    transformer = JobDataTransformer()
+    processed_jobs, transform_stats = transformer.transform_batch(raw_jobs)
     
     if not processed_jobs:
         logger.warning("no jobs were successfully transformed. terminating pipeline run.")
         return
 
     logger.info(f"successfully transformed {len(processed_jobs)} jobs.")
-    logger.info(f"relevance ratio: {transform_stats.get('filter_ratio', 'N/A')}")
-    logger.info(f"missing fields - company: {transform_stats.get('missing_company', 0)}, location: {transform_stats.get('missing_location', 0)}, date: {transform_stats.get('missing_posted_date', 0)}")
     logger.info("transform phase complete")
 
     # load

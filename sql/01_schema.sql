@@ -5,9 +5,6 @@ CREATE TABLE IF NOT EXISTS jobs (
     platform TEXT NOT NULL,
     job_url TEXT UNIQUE NOT NULL,
     job_title TEXT NOT NULL,
-    company_name TEXT,
-    location TEXT,
-    posted_date DATE,
     scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     -- Transformed fields
     seniority_level TEXT,
@@ -44,4 +41,4 @@ CREATE TABLE IF NOT EXISTS job_descriptions (
 CREATE INDEX IF NOT EXISTS idx_jobs_platform ON jobs(platform);
 CREATE INDEX IF NOT EXISTS idx_jobs_seniority ON jobs(seniority_level);
 CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(skill_name);
-CREATE INDEX IF NOT EXISTS idx_jobs_url ON jobs(job_url);
+CREATE INDEX IF NOT EXISTS idx_jobs_url ON jobs(job_url) ON jobs(job_url);

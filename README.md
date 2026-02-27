@@ -1,15 +1,15 @@
 # End-to-End Job Market Analytics Pipeline for Vietnam's Data Sector
 
-A production-ready ETL pipeline for analyzing the Vietnamese job market, with a focus on data-related positions. The pipeline scrapes job listings, applies NLP-based relevance filtering, extracts structured insights, and stores analytics-ready data in SQLite.
+A lightweight ETL pipeline for analyzing the Vietnamese job market, with a focus on data-related positions. The pipeline scrapes job listings from multiple platforms, extracts structured insights, and stores analytics-ready data in SQLite.
 
 ## Features
 
 - **Multi-Platform Web Scraping**: Concurrent scraping from CareerViet, TopCV, and ViecLam24h
-- **NLP-Based Relevance Filtering**: Semantic similarity filtering using `all-MiniLM-L6-v2` transformer model
-- **Data Extraction**: Automated extraction of job titles, skills, salary ranges, seniority levels, and locations
+- **Data Extraction**: Automated extraction of job titles, skills, salary ranges, and seniority levels
 - **Data Quality**: NULL values for missing fields instead of empty strings
 - **SQL Analytics**: Pre-built views for analysis and reporting
-- **Test Coverage**: Comprehensive unit tests for scrapers, transformers, and loaders
+- **Test Coverage**: Unit tests for scrapers, transformers, and loaders
+- **Minimal Dependencies**: Lightweight and fast with no heavy ML models
 
 ## Architecture
 
@@ -18,46 +18,17 @@ job_market_analytics/
 ├── src/
 │   ├── orchestrator.py       # Manages concurrent scraping across platforms
 │   ├── pipeline.py           # Main ETL workflow orchestration
-│   ├── config.py             # Skill/seniority/location configurations
+│   ├── config.py             # Skill/seniority configurations
 │   ├── scrapers/             # Platform-specific scrapers (3 platforms)
-│   ├── transform/            # Data transformation and NLP filtering
+│   ├── transform/            # Data transformation and extraction
 │   ├── load/                 # Database loading logic
-│   └── utils/                # Shared utilities (NLP, database, logging)
+│   └── utils/                # Shared utilities (database, logging)
 ├── sql/                      # Database schema and analytics views
+├── powerbi/                  # Power BI dashboard templates
 ├── tests/                    # Unit and integration tests
 ├── data/                     # SQLite database location
 ├── logs/                     # Runtime logs
-└── requirements.txt          # Python dependencies (optimized)
-```
-
-## NLP Model Specification
-
-### Relevance Filter
-- **Model**: `all-MiniLM-L6-v2` (Sentence-Transformers)
-- **Type**: Lightweight transformer (61 MB, ~22M parameters)
-- **Mechanism**: Cosine similarity between job embeddings and query embedding
-- **Threshold**: 0.3 (configurable)
-- **Speed**: ~100ms per comparison on CPU
-- **Fallback**: Keyword-based matching if model fails or is unavailable
-
-### Why This Model?
-- **Efficient**: Orders of magnitude faster than large models (BERT base ~110M params)
-- **Accurate**: Trained on semantic similarity tasks, designed for short texts
-- **Portable**: Works with CPU, no GPU required
-- **Production-Ready**: Widely used for similarity tasks in production systems
-
-### Usage
-```python
-from src.transform.job_transformer import JobDataTransformer
-
-# Default: NLP filtering enabled with 0.3 threshold
-transformer = JobDataTransformer(
-    enable_nlp_filter=True,
-    relevance_threshold=0.3
-)
-
-# Disable NLP filtering to use keyword-based fallback
-transformer = JobDataTransformer(enable_nlp_filter=False)
+└── requirements.txt          # Python dependencies
 ```
 
 ---
@@ -89,9 +60,8 @@ transformer = JobDataTransformer(enable_nlp_filter=False)
    pip install -r requirements.txt
    ```
    This installs:
-   - `sentence-transformers` (NLP model)
    - `beautifulsoup4` + `requests` (web scraping)
-   - `SQLAlchemy` (ORM)
+   - `SQLAlchemy` (database ORM)
    - `pandas` (data manipulation)
    - `pytest` (testing)
 
@@ -107,8 +77,8 @@ python src/pipeline.py
 This performs:
 1. Database schema initialization
 2. Concurrent scraping from 3 platforms (10 pages, max 500 jobs each)
-3. NLP-based relevance filtering
-4. Skill extraction and seniority detection
+3. Data transformation: skill extraction and seniority detection
+4. Salary extraction and validation
 5. Data loading into SQLite
 
 **Expected Output:**
@@ -137,7 +107,7 @@ raw_jobs = orchestrator.scrape(
 ```bash
 pytest tests/ -v             # Verbose output
 pytest tests/ --cov=src      # With coverage report
-pytest tests/test_transform/test_nlp_filtering.py  # Specific test
+pytest tests/test_transform/test_skill_extraction.py  # Specific test
 ```
 
 ---
@@ -146,19 +116,23 @@ pytest tests/test_transform/test_nlp_filtering.py  # Specific test
 
 ### Extracted Fields (with NULL handling)
 - **Core**: platform, job_url, job_title, platform_job_id
-- **Company**: company_name (NULL if not found)
-- **Location**: location (canonical location or NULL)
-- **Posting**: posted_date (YYYY-MM-DD or NULL)
 - **Compensation**: salary_min, salary_max, salary_currency (NULL if not specified)
-- **Level**: seniority_level (or NULL if not detected)
+- **Level**: seniority_level (NULL if not detected)
 - **Skills**: extracted_skills list with categories
+- **Timestamps**: scraped_at (ISO format)
 - **Descriptions**: raw_description, clean_description
+
+### Database Tables
+- **jobs**: Main fact table with job listings
+- **skills**: Skill dimension table
+- **job_skills**: Many-to-many bridge table linking jobs and skills
+- **job_descriptions**: Raw and cleaned job descriptions
 
 ### Database Views
 - `job_market_analytics_views.sql` includes pre-built SQL views for:
   - Skills demand analysis
-  - Salary statistics by seniority
-  - Location-based job distribution
+  - Salary statistics by seniority level
+  - Job count by platform
 
 ---
 
@@ -166,8 +140,8 @@ pytest tests/test_transform/test_nlp_filtering.py  # Specific test
 
 1. **NULL over Empty Strings**: Missing data is stored as NULL for proper SQL analytics
 2. **Concurrent Scraping**: ThreadPoolExecutor runs all platforms in parallel (faster collection)
-3. **Semantic Filtering**: NLP filtering reduces noise and improves data quality
-4. **Configurable Thresholds**: Seniority detection and relevance filtering are tunable
+3. **Simplified Stack**: No heavy dependencies; focus on core ETL functionality
+4. **Skill Configuration-Based**: Seniority and skill detection uses regex patterns from config files
 5. **SQLite for Portability**: No external database required; single .db file is portable
 6. **Modular Structure**: Each component (scraper, transformer, loader) is independently testable
 
@@ -179,28 +153,18 @@ pytest tests/test_transform/test_nlp_filtering.py  # Specific test
 - **requests**: HTTP requests for web scraping
 - **beautifulsoup4**: HTML parsing
 - **SQLAlchemy**: Database ORM
-- **sentence-transformers**: NLP semantic similarity
-- **torch**: PyTorch (required by sentence-transformers)
+- **pandas**: Data manipulation
+- **pytest**: Testing framework
 
 ### Performance Metrics
 - Scraping: ~5-10 seconds per page per platform (with 2-second delays)
-- Transformation (100 jobs): ~2-3 seconds with NLP filtering
-- Full pipeline (1,500 jobs): ~3-5 minutes end-to-end
-
-### Memory Usage
-- Model loading: ~300 MB (one-time load)
-- Per-job processing: ~1-2 MB
-- Typical run: <500 MB peak memory
+- Transformation (100 jobs): ~100-200ms (no ML model overhead)
+- Full pipeline (1,500 jobs): ~1-2 minutes end-to-end
+- Memory: ~50-100 MB (lightweight processing)
 
 ---
 
 ## Troubleshooting
-
-### NLP Model Download Fails
-```bash
-# Manually download the model:
-python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
-```
 
 ### Scraping Timeouts
 Increase timeout in `orchestrator.py`:
@@ -209,10 +173,20 @@ scraper_timeout_seconds = 600  # Change from 300 to 600
 ```
 
 ### Database Locked Error
-Close any open connections and delete `.db` file to restart:
+Close any open connections and delete the .db file to restart:
 ```bash
 rm data/job_market_analytics.db
 python src/pipeline.py
+```
+
+### Missing Salary or Seniority
+Check `src/config.py` for keyword configurations. Add new patterns as needed:
+```python
+class SeniorityConfig:
+    SENIORITY_LEVELS = {
+        'senior': ['senior', 'sr.', 'lead', '5+', '5 năm'],
+        # Add more patterns here
+    }
 ```
 
 ---
@@ -221,17 +195,15 @@ python src/pipeline.py
 
 **Included:**
 - `src/` - Core logic (scrapers, transformers, loaders)
-- `tests/` - Unit and integration tests for reliability
+- `tests/` - Unit tests for reliability
 - `sql/` - Schema and analytics views
+- `powerbi/` - Power BI dashboard templates for visualization
 - `data/`, `logs/` - Runtime artifacts
 
-**Excluded (removed for minimalism):**
-- Demo scripts (edge cases covered in tests)
-- PowerBI folder (use SQL views instead)
-- Apache Airflow (orchestration not needed at this scale)
-- Flask server (data loading is one-shot)
-
-
+**Excluded (minimalist design):**
+- NLP models (complexity not needed)
+- Demo scripts (patterns in tests)
+- Web server (one-shot pipeline, not long-running service)
 
 ---
 
@@ -239,9 +211,73 @@ python src/pipeline.py
 
 The pipeline follows a clear Extract-Transform-Load (ETL) pattern:
 
-1.  **Extract (Scrapers)**: Individual scraper modules (e.g., `careerviet_scraper.py`, `topcv_scraper.py`) extend a `BaseScraper` class, providing platform-specific logic for navigating job listings and extracting raw job details. They handle HTTP requests, retries, and rate-limiting.
-2.  **Orchestrator (`orchestrator.py`)**: Manages the concurrent execution of multiple scrapers using a thread pool. It aggregates all raw job data collected from different platforms into a single, unified list of dictionaries.
-3.  **Transform (`job_transformer.py`)**: Takes the raw job data, cleans it, normalizes fields (job titles, company names, locations), detects seniority levels, extracts salary ranges, and identifies key skills and tools mentioned in job descriptions. It outputs a list of structured, analytics-ready job records.
-4.  **Load (`load_to_db.py`)**: Connects to an SQLite database (`data/job_market_analytics.db`). It inserts the transformed job data into the `jobs`, `job_descriptions`, `skills`, and `job_skills` tables, handling deduplication and ensuring data integrity.
-5.  **SQL Analysis (`02_analytics_views.sql`)**: Defines SQL views that simplify common analytical queries. These views serve as the direct data source for any reporting or dashboarding tools.
-6.  **Dashboard (Power BI / Streamlit)**: A visualization layer (not implemented in this repository but enabled by the structured database) for exploring insights.
+1. **Extract (Scrapers)**: Individual scraper modules (e.g., `careerviet_scraper.py`, `topcv_scraper.py`) extend `BaseScraper`, handling HTTP requests, pagination, and rate-limiting for each platform.
+
+2. **Orchestrator (`orchestrator.py`)**: Manages concurrent execution of multiple scrapers using ThreadPoolExecutor. Aggregates all raw job data from different platforms into a single unified list.
+
+3. **Transform (`job_transformer.py`)**: 
+   - Cleans and normalizes job descriptions
+   - Detects seniority levels using regex patterns
+   - Extracts salary ranges (VND format)
+   - Identifies skills and technologies mentioned
+
+4. **Load (`load_to_db.py`)**: Inserts transformed data into SQLite tables (jobs, skills, job_skills), handling deduplication and maintaining referential integrity.
+
+5. **SQL Analysis (`02_analytics_views.sql`)**: Pre-built views simplify common analytical queries.
+
+6. **Dashboard Integration**: Structured database enables any BI tool (Power BI, Tableau, Streamlit) to visualize insights.
+
+---
+
+## Power BI Dashboard
+
+A Power BI dashboard template is available in the `powerbi/` folder for visualizing job market insights.
+
+### Setup
+
+1. **Open Power BI Desktop**
+2. **Create new data source**:
+   - Get Data → SQLite → Select `data/job_market_analytics.db`
+3. **Load tables and views**:
+   - Import `jobs`, `skills`, `job_skills` tables
+   - Import views from `sql/02_analytics_views.sql`
+4. **Create visualizations**:
+   - Skills demand (top 10 skills)
+   - Salary distribution by seniority
+   - Job count by platform
+   - Skills vs compensation trends
+
+### Available Data for Dashboards
+- `jobs` table: Core job listings with salary and seniority
+- `skills` table: Skill dimension data
+- `job_skills` table: Many-to-many mapping for analysis
+- Pre-built views: Quick access to common aggregations
+
+### Sample Dashboard Insights
+- Which skills are most in-demand?
+- How do salaries vary by seniority level?
+- Which platforms have more jobs?
+- Trend of emerging technologies
+
+---
+
+## Config Files
+
+### Skills Configuration (`src/config.py`)
+Add new skills and keywords to track emerging demands:
+```python
+'programming_languages': {
+    'Python': ['python', 'py'],
+    'SQL': ['sql', 'tsql', 'plsql'],
+    # Add more skills here
+}
+```
+
+### Seniority Levels (`src/config.py`)
+Configure detection patterns:
+```python
+'director_vp': ['director', 'vp', 'c-level'],
+'manager_lead': ['manager', 'lead', 'architect'],
+'senior': ['senior', 'sr.', 'principal'],
+# More levels...
+```

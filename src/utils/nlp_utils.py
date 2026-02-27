@@ -107,49 +107,31 @@ class NLPExtractor:
 
 
 class FilterStatistics:
-    """Track statistics for job filtering and transformation."""
+    """Track statistics for job transformation."""
     
     def __init__(self):
         self.total_jobs = 0
-        self.filtered_relevant = 0
-        self.filtered_irrelevant = 0
-        self.extraction_errors = 0
-        self.jobs_with_missing_fields = {
-            'company': 0,
-            'location': 0,
-            'posted_date': 0
-        }
+        self.transformed_jobs = 0
+        self.errors = 0
     
     def record_job(self, relevant: bool, errors: bool = False):
         """Record a job processing result."""
         self.total_jobs += 1
         if relevant:
-            self.filtered_relevant += 1
-        else:
-            self.filtered_irrelevant += 1
+            self.transformed_jobs += 1
         if errors:
-            self.extraction_errors += 1
+            self.errors += 1
     
     def record_missing_field(self, field_name: str):
-        """Record a missing extraction field."""
-        if field_name in self.jobs_with_missing_fields:
-            self.jobs_with_missing_fields[field_name] += 1
+        """Deprecated: field tracking no longer needed."""
+        pass
     
     def get_summary(self) -> Dict[str, Any]:
         """Get summary statistics."""
-        total = self.total_jobs
-        if total == 0:
-            return {}
-        
         return {
-            'total_jobs': total,
-            'filtered_relevant': self.filtered_relevant,
-            'filtered_irrelevant': self.filtered_irrelevant,
-            'filter_ratio': f"{(self.filtered_relevant/total*100):.1f}%" if total > 0 else "N/A",
-            'extraction_errors': self.extraction_errors,
-            'missing_company': self.jobs_with_missing_fields['company'],
-            'missing_location': self.jobs_with_missing_fields['location'],
-            'missing_posted_date': self.jobs_with_missing_fields['posted_date'],
+            'total_jobs': self.total_jobs,
+            'transformed_jobs': self.transformed_jobs,
+            'errors': self.errors,
         }
     
     def print_summary(self):
@@ -160,14 +142,9 @@ class FilterStatistics:
             return
         
         logger.info("="*60)
-        logger.info("FILTERING & EXTRACTION STATISTICS")
+        logger.info("TRANSFORMATION STATISTICS")
         logger.info("="*60)
         logger.info(f"Total jobs processed: {summary.get('total_jobs', 0)}")
-        logger.info(f"Relevant jobs: {summary.get('filtered_relevant', 0)}")
-        logger.info(f"Filtered out: {summary.get('filtered_irrelevant', 0)}")
-        logger.info(f"Relevance ratio: {summary.get('filter_ratio', 'N/A')}")
-        logger.info(f"Extraction errors: {summary.get('extraction_errors', 0)}")
-        logger.info(f"Missing company: {summary.get('missing_company', 0)}")
-        logger.info(f"Missing location: {summary.get('missing_location', 0)}")
-        logger.info(f"Missing posted_date: {summary.get('missing_posted_date', 0)}")
+        logger.info(f"Successfully transformed: {summary.get('transformed_jobs', 0)}")
+        logger.info(f"Errors: {summary.get('errors', 0)}")
         logger.info("="*60)
