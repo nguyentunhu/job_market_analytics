@@ -71,7 +71,7 @@ job_market_analytics/
 
 ### Full ETL Pipeline
 ```bash
-python src/pipeline.py
+python -m src.pipeline 
 ```
 
 This performs:
