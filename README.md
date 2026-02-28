@@ -1,4 +1,4 @@
-# End-to-End Job Market Analytics Pipeline for Vietnam's Data Sector
+# End-to-End Job Market Analytics Pipeline
 
 A lightweight ETL pipeline for analyzing the Vietnamese job market, with a focus on Data Analyst positions. The pipeline scrapes job listings from multiple platforms, extracts structured insights, and stores analytics-ready data in SQLite.
 
