@@ -1,6 +1,6 @@
 # End-to-End Job Market Analytics Pipeline for Vietnam's Data Sector
 
-A lightweight ETL pipeline for analyzing the Vietnamese job market, with a focus on data-related positions. The pipeline scrapes job listings from multiple platforms, extracts structured insights, and stores analytics-ready data in SQLite.
+A lightweight ETL pipeline for analyzing the Vietnamese job market, with a focus on Data Analyst positions. The pipeline scrapes job listings from multiple platforms, extracts structured insights, and stores analytics-ready data in SQLite.
 
 ## Features
 
@@ -162,48 +162,6 @@ pytest tests/test_transform/test_skill_extraction.py  # Specific test
 - Full pipeline (1,500 jobs): ~1-2 minutes end-to-end
 - Memory: ~50-100 MB (lightweight processing)
 
----
-
-## Troubleshooting
-
-### Scraping Timeouts
-Increase timeout in `orchestrator.py`:
-```python
-scraper_timeout_seconds = 600  # Change from 300 to 600
-```
-
-### Database Locked Error
-Close any open connections and delete the .db file to restart:
-```bash
-rm data/job_market_analytics.db
-python src/pipeline.py
-```
-
-### Missing Salary or Seniority
-Check `src/config.py` for keyword configurations. Add new patterns as needed:
-```python
-class SeniorityConfig:
-    SENIORITY_LEVELS = {
-        'senior': ['senior', 'sr.', 'lead', '5+', '5 năm'],
-        # Add more patterns here
-    }
-```
-
----
-
-## Project Structure Rationale
-
-**Included:**
-- `src/` - Core logic (scrapers, transformers, loaders)
-- `tests/` - Unit tests for reliability
-- `sql/` - Schema and analytics views
-- `powerbi/` - Power BI dashboard templates for visualization
-- `data/`, `logs/` - Runtime artifacts
-
-**Excluded (minimalist design):**
-- NLP models (complexity not needed)
-- Demo scripts (patterns in tests)
-- Web server (one-shot pipeline, not long-running service)
 
 ---
 
@@ -233,31 +191,9 @@ The pipeline follows a clear Extract-Transform-Load (ETL) pattern:
 
 A Power BI dashboard template is available in the `powerbi/` folder for visualizing job market insights.
 
-### Setup
+![Job Market Analytics Dashboard](powerbi/dashboard.png)
 
-1. **Open Power BI Desktop**
-2. **Create new data source**:
-   - Get Data → SQLite → Select `data/job_market_analytics.db`
-3. **Load tables and views**:
-   - Import `jobs`, `skills`, `job_skills` tables
-   - Import views from `sql/02_analytics_views.sql`
-4. **Create visualizations**:
-   - Skills demand (top 10 skills)
-   - Salary distribution by seniority
-   - Job count by platform
-   - Skills vs compensation trends
-
-### Available Data for Dashboards
-- `jobs` table: Core job listings with salary and seniority
-- `skills` table: Skill dimension data
-- `job_skills` table: Many-to-many mapping for analysis
-- Pre-built views: Quick access to common aggregations
-
-### Sample Dashboard Insights
-- Which skills are most in-demand?
-- How do salaries vary by seniority level?
-- Which platforms have more jobs?
-- Trend of emerging technologies
+**Dashboard Overview**: This dashboard provides a comprehensive view of the Vietnamese job market data with interactive visualizations, enabling data-driven insights into skills demand, salary trends, and platform performance.
 
 ---
 
@@ -279,5 +215,4 @@ Configure detection patterns:
 'director_vp': ['director', 'vp', 'c-level'],
 'manager_lead': ['manager', 'lead', 'architect'],
 'senior': ['senior', 'sr.', 'principal'],
-# More levels...
 ```
